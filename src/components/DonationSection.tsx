@@ -7,9 +7,10 @@ import {
   MessageCircle,
   Phone,
   QrCode,
+  ShoppingBag,
   Truck,
 } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   buildPickupWhatsappUrl,
   PickupItemSelection,
@@ -17,7 +18,9 @@ import {
   ProductCategory,
   useDonationsStore,
 } from '../data/donationsStore';
+import { SACOLOES_GALLERY_ITEMS } from '../data/institutionalData';
 import { DonateButton } from './DonateButton';
+import { SacoloesDonationsTab } from './SacoloesDonationsTab';
 
 interface DonationSectionProps {
   onOpenDonateModal: (tab: 'pix' | 'monthly' | 'pickup') => void;
@@ -34,9 +37,30 @@ const PRODUCT_CATEGORIES: Array<'Todos' | ProductCategory> = [
 
 export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSectionProps) {
   const { products, addPickupSchedule } = useDonationsStore();
-  const [activeTab, setActiveTab] = useState<'produtos' | 'agendamento'>('produtos');
+  const [activeTab, setActiveTab] = useState<'produtos' | 'sacoloes' | 'agendamento'>('produtos');
   const [productFilter, setProductFilter] = useState<'Todos' | ProductCategory>('Todos');
   const [copiedKey, setCopiedKey] = useState<'cnpj' | 'phone' | null>(null);
+
+  useEffect(() => {
+    const syncFromHash = () => {
+      if (window.location.hash === '#sacoloes') {
+        setActiveTab('sacoloes');
+      }
+    };
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('a[href="#sacoloes"]')) {
+        setActiveTab('sacoloes');
+      }
+    };
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
+    document.addEventListener('click', handleAnchorClick);
+    return () => {
+      window.removeEventListener('hashchange', syncFromHash);
+      document.removeEventListener('click', handleAnchorClick);
+    };
+  }, []);
 
   // Inline Pickup Form State
   const [collabName, setCollabName] = useState('');
@@ -226,9 +250,9 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
           </div>
         </div>
 
-        {/* Section Tabs: Lista de Produtos vs Agendamento de Coleta */}
-        <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
-          <div role="tablist" className="inline-flex rounded-lg bg-[#E8E2D5] p-1">
+        {/* Section Tabs: Lista de Produtos vs Doações de Sacolões vs Agendamento de Coleta */}
+        <div id="sacoloes" className="mt-10 scroll-mt-24 flex flex-wrap items-center justify-between gap-4">
+          <div role="tablist" aria-label="Opções de doação e entregas" className="flex flex-wrap rounded-lg bg-[#E8E2D5] p-1">
             <button
               type="button"
               role="tab"
@@ -241,6 +265,20 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
               }`}
             >
               Lista de Produtos Aceitos ({products.filter((p) => p.active).length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'sacoloes'}
+              onClick={() => setActiveTab('sacoloes')}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                activeTab === 'sacoloes'
+                  ? 'bg-white text-[#1C1917] shadow-sm'
+                  : 'text-[#57534E] hover:text-[#1C1917]'
+              }`}
+            >
+              <ShoppingBag className="h-3.5 w-3.5 text-[#14532D]" aria-hidden="true" />
+              <span>Doações de Sacolões ({SACOLOES_GALLERY_ITEMS.length})</span>
             </button>
             <button
               type="button"
@@ -278,7 +316,12 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
           )}
         </div>
 
-        {activeTab === 'produtos' ? (
+        {activeTab === 'sacoloes' ? (
+          <SacoloesDonationsTab
+            onDonatePix={() => onOpenDonateModal('pix')}
+            onSchedulePickup={() => setActiveTab('agendamento')}
+          />
+        ) : activeTab === 'produtos' ? (
           <div className="mt-6 overflow-x-auto rounded-lg border border-[#D6CEBE] bg-white">
             <table className="w-full border-collapse text-left text-sm">
               <thead>

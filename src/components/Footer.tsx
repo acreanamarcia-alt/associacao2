@@ -97,6 +97,11 @@ export function Footer({ onOpenEbook, onOpenAdmin }: FooterProps) {
                 </a>
               </li>
               <li>
+                <a href="#sacoloes" className="hover:text-[#1C1917] hover:underline underline-offset-4">
+                  Doações de Sacolões às Famílias
+                </a>
+              </li>
+              <li>
                 <a href="#producao" className="hover:text-[#1C1917] hover:underline underline-offset-4">
                   Produção Própria de Alimentos
                 </a>

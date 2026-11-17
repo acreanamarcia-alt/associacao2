@@ -14,6 +14,7 @@ interface HeaderProps {
 const NAV_LINKS = [
   { href: '#vagas', label: 'Vagas' },
   { href: '#doacoes', label: 'Doar' },
+  { href: '#sacoloes', label: 'Sacolões' },
   { href: '#producao', label: 'Produção' },
   { href: '#depoimentos', label: 'Depoimentos' },
   { href: '#central-ia', label: 'Editais & Mapa' },
@@ -55,14 +56,14 @@ export function Header({
             referrerPolicy="no-referrer"
             className="h-11 w-11 shrink-0 rounded-full border border-[#14532D]/30 bg-white object-cover shadow-xs sm:h-12 sm:w-12"
           />
-          <span className="font-serif text-base font-bold leading-tight tracking-tight text-[#14532D] transition-colors group-hover:text-[#0F3F22] sm:text-xl lg:whitespace-nowrap">
+          <span className="font-serif text-base font-bold leading-tight tracking-tight text-[#14532D] transition-colors group-hover:text-[#0F3F22] sm:text-xl xl:whitespace-nowrap">
             Associação Recanto Social Bom Pastor
           </span>
         </a>
 
         <nav
           aria-label="Navegação principal"
-          className="hidden lg:flex items-center gap-5 text-sm font-medium text-[#57534E]"
+          className="hidden lg:flex items-center gap-4 xl:gap-5 text-sm font-medium text-[#57534E]"
         >
           {NAV_LINKS.map((link) => (
             <a

@@ -555,3 +555,103 @@ export const INSTITUTIONAL_CHAPTERS: InstitutionalChapter[] = [
     ],
   },
 ];
+
+export interface SacolaoDeliveryRecord {
+  id: string;
+  registerNumber: string;
+  title: string;
+  caption: string;
+  imageSrc: string;
+  periodLabel: string;
+  locationLabel: string;
+  itemsSummary: string;
+}
+
+export const SACOLOES_ACTIVITY_TEXT = {
+  kicker: 'Segurança Alimentar Direta · Entregas em Domicílio',
+  title: 'Doações de Sacolões às Famílias Assistidas',
+  lead: 'Além das refeições preparadas na cozinha comunitária, o Projeto Sopão realiza a montagem e entrega direta de sacolões completos de alimentos básicos às famílias cadastradas em situação de vulnerabilidade social em Plácido de Castro (AC).',
+  paragraphs: [
+    'Cada sacolão é organizado com gêneros alimentícios de primeira necessidade — incluindo arroz, feijão, farinha de mandioca regional, macarrão, farinha de trigo, óleo de cozinha, açúcar, café e biscoitos — selecionados para assegurar autonomia alimentar e dignidade dentro do próprio lar.',
+    'Para alcançar moradores que enfrentam dificuldades de locomoção ou jornadas extensas de trabalho, a equipe voluntária da Associação Recanto Social Bom Pastor realiza entregas presenciais porta a porta, inclusive no período noturno, fortalecendo o vínculo comunitário e garantindo que cada cesta chegue diretamente às mãos de quem mais precisa.',
+  ],
+  pillars: [
+    {
+      index: '01',
+      title: 'Composição Nutricional Essencial',
+      detail:
+        'Sacolões padronizados com arroz, feijão, farinha de mandioca, macarrão, farinha de trigo, óleo, açúcar e café para suprir as refeições diárias da família.',
+    },
+    {
+      index: '02',
+      title: 'Triagem e Acompanhamento Social',
+      detail:
+        'Prioridade a lares com crianças, idosos, trabalhadores informais e famílias acompanhadas pela rede comunitária do Bairro Olaria e adjacências.',
+    },
+    {
+      index: '03',
+      title: 'Entrega Direta Porta a Porta',
+      detail:
+        'Rotas presenciais diurnas e noturnas conduzidas pela coordenação e voluntários do Projeto Sopão diretamente nas residências beneficiadas.',
+    },
+  ],
+};
+
+export const SACOLOES_GALLERY_ITEMS: SacolaoDeliveryRecord[] = [
+  {
+    id: 'sacolao-01',
+    registerNumber: 'Registro 01',
+    title: 'Entrega Noturna em Domicílio — Sacolão Completo',
+    caption:
+      'Representante do Projeto Sopão realiza a entrega noturna de um sacolão completo com arroz, feijão, farinha de mandioca, óleo e mantimentos essenciais diretamente à moradora em frente à sua residência.',
+    imageSrc: '/assets/aistudio/IMG-20261117-WA0022_d8c2d513.jpg',
+    periodLabel: 'Entrega noturna · Ação direta',
+    locationLabel: 'Plácido de Castro - AC',
+    itemsSummary: 'Arroz, feijão, farinha de mandioca, café, óleo e itens básicos',
+  },
+  {
+    id: 'sacolao-02',
+    registerNumber: 'Registro 02',
+    title: 'Acolhimento Familiar na Varanda da Residência',
+    caption:
+      'Entrega de cesta básica embalada pelo Projeto Sopão a uma beneficiária na varanda de sua casa durante a rota noturna de assistência alimentar.',
+    imageSrc: '/assets/aistudio/IMG-20261117-WA0024_2f6bd52e.jpg',
+    periodLabel: 'Entrega noturna · Rota solidária',
+    locationLabel: 'Plácido de Castro - AC',
+    itemsSummary: 'Arroz, feijão, farinha de mandioca, biscoitos e mantimentos essenciais',
+  },
+  {
+    id: 'sacolao-03',
+    registerNumber: 'Registro 03',
+    title: 'Atendimento Direto no Lar das Famílias',
+    caption:
+      'Coordenação do Projeto Sopão entrega sacolão reforçado com óleo de cozinha, farinha de trigo, arroz e gêneros essenciais diretamente às moradoras no interior da residência.',
+    imageSrc: '/assets/aistudio/IMG-20261117-WA0023_87ed4a52.jpg',
+    periodLabel: 'Visita domiciliar · Apoio contínuo',
+    locationLabel: 'Plácido de Castro - AC',
+    itemsSummary: 'Óleo de cozinha, farinha de trigo, arroz, feijão e mantimentos',
+  },
+  {
+    id: 'sacolao-04',
+    registerNumber: 'Registro 04',
+    title: 'Segurança Alimentar em Cada Residência',
+    caption:
+      'Entrega presencial de sacolão farto com arroz, farinha de mandioca e itens essenciais da cesta básica a uma moradora em sua residência, garantindo suporte imediato à família.',
+    imageSrc: '/assets/aistudio/IMG-20261117-WA0026_c196b645.jpg',
+    periodLabel: 'Entrega noturna · Rede de apoio',
+    locationLabel: 'Plácido de Castro - AC',
+    itemsSummary: 'Arroz, farinha de mandioca, macarrão, óleo e gêneros básicos',
+  },
+  {
+    id: 'sacolao-05',
+    registerNumber: 'Registro 05',
+    title: 'Distribuição Solidária Porta a Porta',
+    caption:
+      'Voluntário do Projeto Sopão entrega sacolão contendo macarrão, arroz, feijão, farinha de mandioca e mantimentos essenciais a uma família atendida pela associação.',
+    imageSrc: '/assets/aistudio/IMG-20261117-WA0025_fcb4f094.jpg',
+    periodLabel: 'Entrega noturna · Assistência direta',
+    locationLabel: 'Plácido de Castro - AC',
+    itemsSummary: 'Macarrão espaguete, arroz, feijão, farinha de mandioca e itens básicos',
+  },
+];
+
