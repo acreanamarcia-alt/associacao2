@@ -57,6 +57,7 @@ export const OFFICIAL_ASSETS = {
   ebookPdf:
     '/assets/aistudio/E-book_Hist_rico_-_Associa__o_Recanto_Social_Bom_Pastor__1__6c01c77d.pdf',
   headquartersMapImage: '/src/assets/images/mapa_sede_placido_1794899018005.jpg',
+  leadershipInAction: '/assets/aistudio/IMG-20261117-WA0037_b0fa6372.jpg',
 };
 
 export const INSTITUTION_PROFILE = {

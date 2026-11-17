@@ -33,9 +33,38 @@ export function HeroSection({
                 </span>
               </p>
 
-              <h1 className="mt-4 font-serif text-[clamp(2.25rem,4vw,3.5rem)] leading-[1.08] font-semibold tracking-tight text-[#1C1917]">
+              <h1 className="mt-4 font-serif text-[clamp(2.25rem,4vw,3.5rem)] leading-[1.08] font-semibold tracking-tight text-[#1C1917] [text-wrap:balance]">
                 Do sopão comunitário no Bairro Olaria à segurança alimentar em Plácido de Castro.
               </h1>
+
+              <figure className="mt-6 grid grid-cols-1 items-center gap-5 rounded-lg border border-[#D6CEBE] bg-white p-4 sm:grid-cols-12 sm:p-5">
+                <div className="overflow-hidden rounded-md bg-[#EFEBE3] aspect-[3/4] sm:col-span-5">
+                  <img
+                    src={OFFICIAL_ASSETS.leadershipInAction}
+                    alt="Presidenta Antônia Missionária e vice-presidente José Benedito na cozinha comunitária do Projeto Sopão com fornadas de bolos caseiros"
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover object-center"
+                  />
+                </div>
+                <figcaption className="space-y-2.5 sm:col-span-7">
+                  <p className="text-[11px] font-medium uppercase tracking-widest text-[#14532D]">
+                    Presidência em Atividade · Cozinha Comunitária
+                  </p>
+                  <p className="font-serif text-sm leading-relaxed text-[#292524]">
+                    Em plena atividade, a presidenta da instituição,{' '}
+                    <strong className="font-semibold text-[#1C1917]">Antônia Missionária</strong>, e
+                    o vice-presidente,{' '}
+                    <strong className="font-semibold text-[#1C1917]">José Benedito</strong>,
+                    reafirmam diariamente o compromisso com o bem-estar social. Cada alimento
+                    preparado representa não apenas sustento, mas sobretudo um gesto concreto de
+                    acolhimento, dignidade e esperança para as famílias atendidas pela nossa
+                    comunidade.
+                  </p>
+                  <p className="font-serif text-sm font-medium italic text-[#14532D]">
+                    Seguimos firmes na missão de servir com amor, união e solidariedade.
+                  </p>
+                </figcaption>
+              </figure>
 
               <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#44403C]">
                 Organização da Sociedade Civil fundada em 26 de fevereiro de 2019 e reconhecida como
