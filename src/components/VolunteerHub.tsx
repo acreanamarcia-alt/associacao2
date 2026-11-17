@@ -5,19 +5,8 @@ import {
   VOLUNTEER_ROLES,
   VolunteerRole,
 } from '../data/institutionalData';
-
-interface VolunteerApplication {
-  id: string;
-  roleId: string;
-  roleTitle: string;
-  fullName: string;
-  phone: string;
-  availability: string;
-  notes: string;
-  createdAt: string;
-}
-
-const STORAGE_KEY = 'rsbp_volunteer_applications_v1';
+import { useVolunteersStore } from '../data/volunteersStore';
+import { InstitutionalFooterStrip } from './InstitutionalFooterStrip';
 
 const CATEGORIES: Array<'Todas' | VolunteerRole['category']> = [
   'Todas',
@@ -43,14 +32,7 @@ export function VolunteerHub() {
   const [activeRole, setActiveRole] = useState<VolunteerRole | null>(null);
   const [showMyApplications, setShowMyApplications] = useState(false);
 
-  const [applications, setApplications] = useState<VolunteerApplication[]>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as VolunteerApplication[]) : [];
-    } catch {
-      return [];
-    }
-  });
+  const { applications, addApplication, removeApplication } = useVolunteersStore();
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -58,14 +40,6 @@ export function VolunteerHub() {
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
   const [justSubmittedId, setJustSubmittedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
-    } catch {
-      // Ignore storage quota errors in restricted browsing modes
-    }
-  }, [applications]);
 
   useEffect(() => {
     if (!activeRole && !showMyApplications) return;
@@ -129,18 +103,15 @@ export function VolunteerHub() {
       return;
     }
 
-    const newApp: VolunteerApplication = {
-      id: `${activeRole.id}-${Date.now()}`,
+    const newApp = addApplication({
       roleId: activeRole.id,
       roleTitle: activeRole.title,
       fullName: trimmedName,
       phone: trimmedPhone,
       availability: availability.trim() || activeRole.schedule,
       notes: notes.trim(),
-      createdAt: new Date().toLocaleDateString('pt-BR'),
-    };
+    });
 
-    setApplications((prev) => [newApp, ...prev]);
     setJustSubmittedId(newApp.id);
     setFormError('');
     setFullName('');
@@ -149,7 +120,7 @@ export function VolunteerHub() {
   };
 
   const handleCancelApplication = (id: string) => {
-    setApplications((prev) => prev.filter((item) => item.id !== id));
+    removeApplication(id);
   };
 
   const buildWhatsappHref = (roleTitle: string, applicantName?: string) => {
@@ -575,6 +546,10 @@ export function VolunteerHub() {
                 )}
               </div>
             </div>
+
+            <div className="mt-auto">
+              <InstitutionalFooterStrip variant="compact" />
+            </div>
           </div>
         </div>
       )}
@@ -652,6 +627,10 @@ export function VolunteerHub() {
                   </a>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-auto">
+              <InstitutionalFooterStrip variant="compact" />
             </div>
           </div>
         </div>

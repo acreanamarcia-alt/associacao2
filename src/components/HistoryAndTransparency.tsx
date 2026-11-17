@@ -1,8 +1,10 @@
-import { BookOpen } from 'lucide-react';
+import { ArrowUpRight, BookOpen, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import {
   INSTITUTIONAL_CHAPTERS,
+  INSTITUTION_PROFILE,
   INSTITUTION_SPECS,
+  OFFICIAL_ASSETS,
   TIMELINE_EVENTS,
 } from '../data/institutionalData';
 
@@ -205,6 +207,42 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
                     </div>
                   ))}
                 </dl>
+
+                {/* Mapa e Localização da Sede */}
+                <div className="mt-6 border-t border-[#E2DDD3] pt-5 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium uppercase tracking-widest text-[#14532D]">
+                      Localização da Sede
+                    </p>
+                    <a
+                      href={INSTITUTION_PROFILE.googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#14532D] hover:underline underline-offset-4"
+                    >
+                      <span>Abrir no Google Maps</span>
+                      <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </a>
+                  </div>
+
+                  <a
+                    href={INSTITUTION_PROFILE.googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative block overflow-hidden rounded-lg border border-[#D6CEBE] bg-[#EFEBE3]"
+                  >
+                    <img
+                      src={OFFICIAL_ASSETS.headquartersMapImage}
+                      alt={`Mapa de localização da sede da ${INSTITUTION_PROFILE.legalName} — ${INSTITUTION_PROFILE.fullAddress}`}
+                      referrerPolicy="no-referrer"
+                      className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                    <span className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-md bg-[#14532D] px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
+                      <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Ver rota no Google Maps</span>
+                    </span>
+                  </a>
+                </div>
               </div>
             </div>
           </div>

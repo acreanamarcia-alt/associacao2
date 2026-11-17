@@ -4,6 +4,7 @@ import {
   Download,
   Globe,
   ImagePlus,
+  Landmark,
   Loader2,
   MapPin,
   Navigation,
@@ -18,9 +19,10 @@ import {
   INSTITUTION_PROFILE,
   OFFICIAL_ASSETS,
 } from '../data/institutionalData';
+import { EditaisCollectorPanel } from './EditaisCollectorPanel';
 import { SimpleMarkdown } from './SimpleMarkdown';
 
-export type IntelligenceTab = 'maps' | 'search' | 'studio';
+export type IntelligenceTab = 'maps' | 'search' | 'editais' | 'studio';
 
 interface MapsPlaceResult {
   title: string;
@@ -395,6 +397,21 @@ export function CommunityIntelligenceSection({
             <button
               type="button"
               role="tab"
+              aria-selected={activeTab === 'editais'}
+              onClick={() => setActiveTab('editais')}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                activeTab === 'editais'
+                  ? 'bg-white text-[#1C1917] shadow-sm'
+                  : 'text-[#57534E] hover:text-[#1C1917]'
+              }`}
+            >
+              <Landmark className="h-3.5 w-3.5 text-[#14532D]" aria-hidden="true" />
+              <span>Editais TJAC &amp; CNAE</span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
               aria-selected={activeTab === 'studio'}
               onClick={() => setActiveTab('studio')}
               className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
@@ -430,6 +447,24 @@ export function CommunityIntelligenceSection({
                   {INSTITUTION_PROFILE.cep}).
                 </p>
 
+                <a
+                  href={INSTITUTION_PROFILE.googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative mt-4 block overflow-hidden rounded-md border border-[#D6CEBE] bg-[#EFEBE3]"
+                >
+                  <img
+                    src={OFFICIAL_ASSETS.headquartersMapImage}
+                    alt={`Mapa de localização da sede — ${INSTITUTION_PROFILE.fullAddress}`}
+                    referrerPolicy="no-referrer"
+                    className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  />
+                  <span className="absolute right-2.5 bottom-2.5 inline-flex items-center gap-1 rounded bg-[#14532D] px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
+                    <span>Abrir no Google Maps</span>
+                    <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+                  </span>
+                </a>
+
                 <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#EFEBE3] pt-4">
                   <button
                     type="button"
@@ -439,6 +474,15 @@ export function CommunityIntelligenceSection({
                     <Navigation className="h-3.5 w-3.5" aria-hidden="true" />
                     <span>Usar minha localização</span>
                   </button>
+                  <a
+                    href={INSTITUTION_PROFILE.googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[38px] items-center gap-1.5 rounded-md border border-[#D6CEBE] bg-white px-3 py-1.5 text-xs font-semibold text-[#1C1917] hover:bg-[#F4F0E8] transition-colors"
+                  >
+                    <MapPin className="h-3.5 w-3.5 text-[#14532D]" aria-hidden="true" />
+                    <span>Link Google Maps</span>
+                  </a>
                   {geoStatus && <span className="text-[11px] text-[#57534E]">{geoStatus}</span>}
                 </div>
               </div>
@@ -678,6 +722,13 @@ export function CommunityIntelligenceSection({
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* TAB 2B: COLETA DE EDITAIS (TJAC & CNAE DA ASSOCIAÇÃO) */}
+        {activeTab === 'editais' && (
+          <div className="mt-8">
+            <EditaisCollectorPanel variant="portal" />
           </div>
         )}
 

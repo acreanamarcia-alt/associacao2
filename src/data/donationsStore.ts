@@ -104,7 +104,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'kg',
     priority: 'Prioritário',
     targetQty: 200,
-    receivedQty: 135,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -114,7 +114,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'kg',
     priority: 'Prioritário',
     targetQty: 120,
-    receivedQty: 78,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -124,7 +124,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'pct 500g',
     priority: 'Contínuo',
     targetQty: 150,
-    receivedQty: 92,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -134,7 +134,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'kg',
     priority: 'Prioritário',
     targetQty: 100,
-    receivedQty: 54,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -144,7 +144,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'kg',
     priority: 'Prioritário',
     targetQty: 180,
-    receivedQty: 110,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -154,7 +154,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'kg',
     priority: 'Prioritário',
     targetQty: 250,
-    receivedQty: 165,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -164,7 +164,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'kg',
     priority: 'Contínuo',
     targetQty: 100,
-    receivedQty: 68,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -174,7 +174,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'unid 500g',
     priority: 'Contínuo',
     targetQty: 30,
-    receivedQty: 18,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -184,7 +184,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'unid',
     priority: 'Contínuo',
     targetQty: 80,
-    receivedQty: 52,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -194,7 +194,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'kg',
     priority: 'Prioritário',
     targetQty: 90,
-    receivedQty: 48,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -204,7 +204,7 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'pct 50 unid',
     priority: 'Prioritário',
     targetQty: 40,
-    receivedQty: 24,
+    receivedQty: 0,
     active: true,
   },
   {
@@ -214,254 +214,24 @@ export const INITIAL_PRODUCTS: DonationProductItem[] = [
     unit: 'kit',
     priority: 'Estável',
     targetQty: 35,
-    receivedQty: 26,
+    receivedQty: 0,
     active: true,
   },
 ];
 
-const INITIAL_DONATIONS: DonationRecord[] = [
-  {
-    id: 'don-001',
-    createdAt: '2026-11-14',
-    donorName: 'Raimundo Nonato Ferreira',
-    donorEmail: 'raimundo.ferreira@exemplo.com',
-    donorPhone: '(68) 99912-4410',
-    type: 'PIX',
-    amountBRL: 250,
-    referenceCode: 'PIX-20261114-01',
-    status: 'Recebida',
-    notes: 'Apoio mensal para aquisição de farinha de trigo da panificação.',
-  },
-  {
-    id: 'don-002',
-    createdAt: '2026-11-15',
-    donorName: 'Supermercado Olaria Parceiro',
-    donorEmail: 'compras@mercadoolaria.com.br',
-    donorPhone: '(68) 99941-8832',
-    type: 'Produtos',
-    itemsSummary: '30 kg Arroz tipo 1, 20 kg Feijão, 15 pct Macarrão',
-    referenceCode: 'COL-20261115-02',
-    status: 'Recebida',
-    notes: 'Entregue diretamente na sede da Rua Zuila Ferreira de Freitas, 933.',
-  },
-  {
-    id: 'don-003',
-    createdAt: '2026-11-16',
-    donorName: 'Carla Cristina Mendes',
-    donorEmail: 'carla.mendes@exemplo.com',
-    donorPhone: '(68) 99973-1129',
-    type: 'Gateway Cartão/Boleto',
-    amountBRL: 100,
-    referenceCode: 'GW-20261116-03',
-    status: 'Em Conferência',
-    notes: 'Contribuição para compra de potes individuais de 500ml.',
-  },
-  {
-    id: 'don-004',
-    createdAt: '2026-11-16',
-    donorName: 'José Augusto Almeida',
-    donorEmail: 'jose.almeida@exemplo.com',
-    donorPhone: '(68) 99985-3091',
-    type: 'PIX',
-    amountBRL: 50,
-    referenceCode: 'PIX-20261116-04',
-    status: 'Pendente',
-    notes: 'Aguardando envio do comprovante pelo colaborador.',
-  },
-];
+const INITIAL_DONATIONS: DonationRecord[] = [];
 
-const INITIAL_MONTHLY_DONORS: MonthlyDonorRecord[] = [
-  {
-    id: 'md-001',
-    createdAt: '2026-03-10',
-    name: 'Antônia Nascimento Oliveira',
-    email: 'antonia.oliveira@exemplo.com',
-    phone: '(68) 99931-4210',
-    monthlyAmountBRL: 100,
-    dueDay: 10,
-    pixChannel: 'Telefone +55 68 9958-7200',
-    status: 'Em dia',
-    lastPaidMonth: '2026-11',
-    totalContributedBRL: 900,
-    notes: 'Doadora recorrente para insumos da padaria comunitária.',
-  },
-  {
-    id: 'md-002',
-    createdAt: '2026-05-05',
-    name: 'Comercial Vale do Acre Ltda',
-    email: 'financeiro@valedoacre.com.br',
-    phone: '(68) 99954-1980',
-    monthlyAmountBRL: 250,
-    dueDay: 5,
-    pixChannel: 'CNPJ 33.314.701/0001-54',
-    status: 'Em dia',
-    lastPaidMonth: '2026-11',
-    totalContributedBRL: 1750,
-    notes: 'Patrocinador mensal de proteínas e legumes para o sopão.',
-  },
-  {
-    id: 'md-003',
-    createdAt: '2026-07-15',
-    name: 'Marcos Vinícius Cavalcante',
-    email: 'marcos.cavalcante@exemplo.com',
-    phone: '(68) 99982-6614',
-    monthlyAmountBRL: 50,
-    dueDay: 15,
-    pixChannel: 'Telefone +55 68 9958-7200',
-    status: 'Aguardando PIX',
-    lastPaidMonth: '2026-10',
-    totalContributedBRL: 200,
-    notes: 'Vencimento dia 15 — lembrete amigável via WhatsApp.',
-  },
-  {
-    id: 'md-004',
-    createdAt: '2026-08-20',
-    name: 'Luciana Beatriz Souza',
-    email: 'luciana.souza@exemplo.com',
-    phone: '(68) 99917-9045',
-    monthlyAmountBRL: 30,
-    dueDay: 20,
-    pixChannel: 'CNPJ 33.314.701/0001-54',
-    status: 'Aguardando PIX',
-    lastPaidMonth: '2026-10',
-    totalContributedBRL: 90,
-    notes: 'Apoio mensal para embalagens e farofa temperada.',
-  },
-];
+const INITIAL_MONTHLY_DONORS: MonthlyDonorRecord[] = [];
 
-const INITIAL_ACCOUNTING: AccountingEntry[] = [
-  {
-    id: 'acc-001',
-    date: '2026-11-01',
-    kind: 'Entrada',
-    category: 'Fomento / Edital TJAC',
-    description: 'Parcela de custeio operacional — Edital Vara Única Criminal',
-    amountBRL: 4500,
-    referenceCode: 'TJAC-2026-11',
-    reconciled: true,
-  },
-  {
-    id: 'acc-002',
-    date: '2026-11-05',
-    kind: 'Entrada',
-    category: 'Doador Mensal PIX',
-    description: 'Mensalidade 2026-11 — Comercial Vale do Acre Ltda',
-    amountBRL: 250,
-    referenceCode: 'PIXM-20261105',
-    reconciled: true,
-  },
-  {
-    id: 'acc-003',
-    date: '2026-11-08',
-    kind: 'Saída',
-    category: 'Insumos do Sopão',
-    description: 'Compra de carnes, legumes frescos e temperos para o sopão semanal',
-    amountBRL: 1420.5,
-    referenceCode: 'NF-00418',
-    reconciled: true,
-  },
-  {
-    id: 'acc-004',
-    date: '2026-11-10',
-    kind: 'Entrada',
-    category: 'Doador Mensal PIX',
-    description: 'Mensalidade 2026-11 — Antônia Nascimento Oliveira (+55 68 9958-7200)',
-    amountBRL: 100,
-    referenceCode: 'PIXM-20261110',
-    reconciled: true,
-  },
-  {
-    id: 'acc-005',
-    date: '2026-11-11',
-    kind: 'Saída',
-    category: 'Panificação Solidária',
-    description: 'Aquisição de sacos de farinha de trigo 25kg, fermento e açúcar',
-    amountBRL: 890,
-    referenceCode: 'NF-00422',
-    reconciled: true,
-  },
-  {
-    id: 'acc-006',
-    date: '2026-11-13',
-    kind: 'Saída',
-    category: 'Embalagens & Gás',
-    description: 'Recarga de gás GLP cozinha comunitária e potes 500ml com tampa',
-    amountBRL: 465.8,
-    referenceCode: 'NF-00429',
-    reconciled: true,
-  },
-  {
-    id: 'acc-007',
-    date: '2026-11-14',
-    kind: 'Entrada',
-    category: 'Doação Avulsa PIX',
-    description: 'Doação confirmada — Raimundo Nonato Ferreira',
-    amountBRL: 250,
-    referenceCode: 'PIX-20261114-01',
-    reconciled: true,
-  },
-  {
-    id: 'acc-008',
-    date: '2026-11-15',
-    kind: 'Saída',
-    category: 'Logística & Veículo',
-    description: 'Abastecimento do veículo institucional para rotas urbana e rural',
-    amountBRL: 310,
-    referenceCode: 'NF-00435',
-    reconciled: true,
-  },
-];
+const INITIAL_ACCOUNTING: AccountingEntry[] = [];
 
-const INITIAL_PICKUPS: PickupScheduleRecord[] = [
-  {
-    id: 'col-001',
-    createdAt: '2026-11-15',
-    collaboratorName: 'Francisca das Chagas Lima',
-    collaboratorEmail: 'francisca.lima@exemplo.com',
-    collaboratorPhone: '(68) 99924-5501',
-    pickupAddress: 'Rua Epitácio Pessoa, 412 · Centro, Plácido de Castro - AC',
-    preferredDate: '2026-11-18',
-    preferredShift: 'Manhã (08h–12h)',
-    items: [
-      { productId: 'prod-arroz', productName: 'Arroz tipo 1', quantity: 10, unit: 'kg' },
-      { productId: 'prod-trigo', productName: 'Farinha de trigo especial', quantity: 15, unit: 'kg' },
-    ],
-    status: 'Agendada',
-    notes: 'Retirar com o veículo da associação na parte da manhã.',
-  },
-  {
-    id: 'col-002',
-    createdAt: '2026-11-14',
-    collaboratorName: 'Sítio Boa Esperança — Produtor Local',
-    collaboratorEmail: 'producao@sitioboaesperanca.br',
-    collaboratorPhone: '(68) 99961-7740',
-    pickupAddress: 'Ramal do Pau d’Arco, Km 4 · Zona Rural, Plácido de Castro - AC',
-    preferredDate: '2026-11-17',
-    preferredShift: 'Tarde (14h–18h)',
-    items: [
-      {
-        productId: 'prod-legumes',
-        productName: 'Legumes frescos (batata, cenoura, abóbora)',
-        quantity: 40,
-        unit: 'kg',
-      },
-      {
-        productId: 'prod-farinha-mandioca',
-        productName: 'Farinha de mandioca (para farofa)',
-        quantity: 20,
-        unit: 'kg',
-      },
-    ],
-    status: 'Em Rota',
-    notes: 'Doação de abóbora e macaxeira recém-colhidas.',
-  },
-];
+const INITIAL_PICKUPS: PickupScheduleRecord[] = [];
 
-const KEY_PRODUCTS = 'rsbp_donation_products_v1';
-const KEY_DONATIONS = 'rsbp_donation_records_v1';
-const KEY_PICKUPS = 'rsbp_pickup_schedules_v1';
-const KEY_MONTHLY_DONORS = 'rsbp_monthly_donors_v1';
-const KEY_ACCOUNTING = 'rsbp_accounting_entries_v1';
+const KEY_PRODUCTS = 'rsbp_donation_products_v2';
+const KEY_DONATIONS = 'rsbp_donation_records_v2';
+const KEY_PICKUPS = 'rsbp_pickup_schedules_v2';
+const KEY_MONTHLY_DONORS = 'rsbp_monthly_donors_v2';
+const KEY_ACCOUNTING = 'rsbp_accounting_entries_v2';
 const SYNC_EVENT = 'rsbp-donations-sync';
 
 function readStorage<T>(key: string, fallback: T): T {
@@ -547,7 +317,8 @@ export function buildMonthlyDonorWhatsappUrl(donor: {
   pixChannel: string;
 }): string {
   const message = [
-    '*ADESÃO DE DOADOR MENSAL — PROJETO SOPÃO*',
+    '*ADESÃO / RECIBO DE DOADOR MENSAL — PROJETO SOPÃO*',
+    'Associação Recanto Social Bom Pastor · CNPJ 33.314.701/0001-54',
     `Doador(a): ${donor.name}`,
     `Valor mensal via PIX: R$ ${donor.monthlyAmountBRL.toFixed(2).replace('.', ',')}`,
     `Dia de contribuição: Todo dia ${String(donor.dueDay).padStart(2, '0')}`,
@@ -556,6 +327,164 @@ export function buildMonthlyDonorWhatsappUrl(donor: {
 
   return `https://wa.me/${PIX_INFO.pickupWhatsappDigits}?text=${encodeURIComponent(message)}`;
 }
+
+export function buildAssociationWhatsappUrl(customMessage?: string): string {
+  const text =
+    customMessage ??
+    'Olá! Gostaria de falar com a Associação Recanto Social Bom Pastor (Projeto Sopão) sobre doações, voluntariado ou coletas.';
+  return `https://wa.me/${PIX_INFO.pickupWhatsappDigits}?text=${encodeURIComponent(text)}`;
+}
+
+export function buildDonationReceiptWhatsappUrl(donation: {
+  referenceCode: string;
+  createdAt: string;
+  donorName: string;
+  donorEmail: string;
+  donorPhone: string;
+  type: DonationType;
+  amountBRL?: number;
+  itemsSummary?: string;
+  status: DonationStatus;
+  notes?: string;
+}): string {
+  const valueLine =
+    typeof donation.amountBRL === 'number'
+      ? `Valor doado: R$ ${donation.amountBRL.toFixed(2).replace('.', ',')}`
+      : `Itens doados: ${donation.itemsSummary || 'Produtos alimentícios / insumos'}`;
+
+  const message = [
+    '*RECIBO DE DOAÇÃO — PROJETO SOPÃO*',
+    'Associação Recanto Social Bom Pastor · CNPJ 33.314.701/0001-54',
+    `Protocolo: ${donation.referenceCode}`,
+    `Data: ${donation.createdAt}`,
+    `Colaborador(a): ${donation.donorName}`,
+    `E-mail: ${donation.donorEmail}`,
+    `Telefone: ${donation.donorPhone}`,
+    `Modalidade: ${donation.type}`,
+    valueLine,
+    `Status: ${donation.status}`,
+    donation.notes ? `Observações: ${donation.notes}` : '',
+    '',
+    'Rua Zuila Ferreira de Freitas, nº 933, Bairro Olaria, Plácido de Castro - AC',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return `https://wa.me/${PIX_INFO.pickupWhatsappDigits}?text=${encodeURIComponent(message)}`;
+}
+
+export function buildAllDonationsWhatsappUrl(donations: DonationRecord[]): string {
+  if (donations.length === 0) {
+    return buildAssociationWhatsappUrl(
+      '*RECIBOS DE DOAÇÕES — PROJETO SOPÃO*\nNenhuma doação registrada no painel administrativo até o momento.'
+    );
+  }
+
+  const lines = donations.slice(0, 20).map((d, idx) => {
+    const valueText =
+      typeof d.amountBRL === 'number'
+        ? `R$ ${d.amountBRL.toFixed(2).replace('.', ',')}`
+        : d.itemsSummary || 'Produtos';
+    return `${idx + 1}. [${d.referenceCode}] ${d.donorName} · ${d.type} · ${valueText} (${d.status}) - ${d.createdAt}`;
+  });
+
+  const extra =
+    donations.length > 20
+      ? `\n... e mais ${donations.length - 20} recibo(s) registrado(s) no painel.`
+      : '';
+
+  const message = [
+    '*ENVIO DE RECIBOS DE DOAÇÕES — PROJETO SOPÃO*',
+    'Associação Recanto Social Bom Pastor · CNPJ 33.314.701/0001-54',
+    `Total de recibos: ${donations.length}`,
+    '',
+    ...lines,
+    extra,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return `https://wa.me/${PIX_INFO.pickupWhatsappDigits}?text=${encodeURIComponent(message)}`;
+}
+
+export function buildAllPickupsWhatsappUrl(pickups: PickupScheduleRecord[]): string {
+  if (pickups.length === 0) {
+    return buildAssociationWhatsappUrl(
+      '*AGENDAMENTOS DE COLETAS — PROJETO SOPÃO*\nNenhum agendamento de coleta cadastrado no painel até o momento.'
+    );
+  }
+
+  const lines = pickups.slice(0, 15).map((p, idx) => {
+    const items =
+      p.items.map((it) => `${it.quantity} ${it.unit} ${it.productName}`).join(', ') ||
+      p.customItemsText ||
+      'A combinar';
+    return `${idx + 1}. ${p.collaboratorName} (${p.collaboratorPhone}) · ${p.preferredDate} (${p.preferredShift}) · End: ${p.pickupAddress} · Itens: ${items} [${p.status}]`;
+  });
+
+  const extra =
+    pickups.length > 15
+      ? `\n... e mais ${pickups.length - 15} agendamento(s) no painel.`
+      : '';
+
+  const message = [
+    '*AGENDAMENTOS DE COLETAS — PROJETO SOPÃO*',
+    'Associação Recanto Social Bom Pastor · CNPJ 33.314.701/0001-54',
+    `Total de coletas: ${pickups.length}`,
+    '',
+    ...lines,
+    extra,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return `https://wa.me/${PIX_INFO.pickupWhatsappDigits}?text=${encodeURIComponent(message)}`;
+}
+
+export function buildAllDonationsAndPickupsWhatsappUrl(
+  donations: DonationRecord[],
+  pickups: PickupScheduleRecord[]
+): string {
+  const donLines =
+    donations.length > 0
+      ? donations.slice(0, 12).map((d, idx) => {
+          const val =
+            typeof d.amountBRL === 'number'
+              ? `R$ ${d.amountBRL.toFixed(2).replace('.', ',')}`
+              : d.itemsSummary || 'Produtos';
+          return `${idx + 1}. [${d.referenceCode}] ${d.donorName} · ${d.type} · ${val} (${d.status})`;
+        })
+      : ['Nenhuma doação registrada no momento.'];
+
+  const pickupLines =
+    pickups.length > 0
+      ? pickups.slice(0, 12).map((p, idx) => {
+          const items =
+            p.items.map((it) => `${it.quantity} ${it.unit} ${it.productName}`).join(', ') ||
+            p.customItemsText ||
+            'A combinar';
+          return `${idx + 1}. ${p.collaboratorName} · ${p.preferredDate} (${p.preferredShift}) · ${p.pickupAddress} · ${items} [${p.status}]`;
+        })
+      : ['Nenhum agendamento de coleta registrado no momento.'];
+
+  const message = [
+    '*RELATÓRIO DE RECIBOS E COLETAS — PROJETO SOPÃO*',
+    'Associação Recanto Social Bom Pastor · CNPJ 33.314.701/0001-54',
+    '',
+    `*RECIBOS DE DOAÇÕES (${donations.length}):*`,
+    ...donLines,
+    donations.length > 12 ? `... (+${donations.length - 12} doações)` : '',
+    '',
+    `*AGENDAMENTOS DE COLETAS (${pickups.length}):*`,
+    ...pickupLines,
+    pickups.length > 12 ? `... (+${pickups.length - 12} coletas)` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return `https://wa.me/${PIX_INFO.pickupWhatsappDigits}?text=${encodeURIComponent(message)}`;
+}
+
 
 export function useDonationsStore() {
   const [products, setProducts] = useState<DonationProductItem[]>(() =>
@@ -955,6 +884,25 @@ export function useDonationsStore() {
     []
   );
 
+  const resetAllFinancialData = useCallback(() => {
+    const zeroedProducts = INITIAL_PRODUCTS.map((p) => ({ ...p, receivedQty: 0 }));
+    setProducts(zeroedProducts);
+    setDonations([]);
+    setPickups([]);
+    setMonthlyDonors([]);
+    setAccountingEntries([]);
+    try {
+      localStorage.setItem(KEY_PRODUCTS, JSON.stringify(zeroedProducts));
+      localStorage.setItem(KEY_DONATIONS, JSON.stringify([]));
+      localStorage.setItem(KEY_PICKUPS, JSON.stringify([]));
+      localStorage.setItem(KEY_MONTHLY_DONORS, JSON.stringify([]));
+      localStorage.setItem(KEY_ACCOUNTING, JSON.stringify([]));
+      window.dispatchEvent(new CustomEvent(SYNC_EVENT));
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
   return {
     products,
     donations,
@@ -975,5 +923,6 @@ export function useDonationsStore() {
     updatePickupStatus,
     addProductItem,
     updateProductItem,
+    resetAllFinancialData,
   };
 }

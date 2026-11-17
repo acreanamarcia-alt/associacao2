@@ -1,17 +1,23 @@
-import { ArrowRight, BookOpen } from 'lucide-react';
+import { ArrowRight, BookOpen, Eye, Users } from 'lucide-react';
 import { INSTITUTION_PROFILE, OFFICIAL_ASSETS } from '../data/institutionalData';
 import { DonateButton } from './DonateButton';
+import { PWAInstallButton } from './PWAInstallButton';
+import { WhatsAppButton } from './WhatsAppButton';
 
 interface HeroSectionProps {
   onOpenEbook: () => void;
   onJumpToVolunteer: () => void;
   onOpenDonate: () => void;
+  totalVisits: number;
+  uniqueVisitors: number;
 }
 
 export function HeroSection({
   onOpenEbook,
   onJumpToVolunteer,
   onOpenDonate,
+  totalVisits,
+  uniqueVisitors,
 }: HeroSectionProps) {
   return (
     <section id="inicio" className="border-b border-[#E2DDD3]">
@@ -52,6 +58,8 @@ export function HeroSection({
                 showSecurityHint
               />
 
+              <WhatsAppButton variant="inline" />
+
               <button
                 type="button"
                 onClick={onJumpToVolunteer}
@@ -69,6 +77,46 @@ export function HeroSection({
                 <BookOpen className="h-4 w-4 text-[#14532D]" aria-hidden="true" />
                 <span>E-book Oficial</span>
               </button>
+
+              <PWAInstallButton variant="hero" />
+            </div>
+
+            <div className="mt-6 rounded-lg border-2 border-[#14532D] bg-[#14532D] p-4 text-white shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-white/15 text-white">
+                    <Eye className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-white/80">
+                      Contador Oficial de Visitantes
+                    </p>
+                    <p className="text-xs text-white/90">
+                      Acessos registrados neste portal institucional
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-baseline gap-5">
+                  <div className="text-right">
+                    <p className="font-mono text-2xl font-bold tabular-nums leading-none sm:text-3xl">
+                      {totalVisits.toLocaleString('pt-BR')}
+                    </p>
+                    <p className="mt-1 text-[11px] uppercase tracking-wider text-white/75">
+                      Visitas totais
+                    </p>
+                  </div>
+                  <div className="border-l border-white/25 pl-4 text-right">
+                    <p className="inline-flex items-center gap-1 font-mono text-lg font-semibold tabular-nums leading-none">
+                      <Users className="h-4 w-4 text-white/85" aria-hidden="true" />
+                      <span>{uniqueVisitors.toLocaleString('pt-BR')}</span>
+                    </p>
+                    <p className="mt-1 text-[11px] uppercase tracking-wider text-white/75">
+                      Visitantes únicos
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

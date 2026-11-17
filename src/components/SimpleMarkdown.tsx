@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 
 function renderInline(text: string): ReactNode[] {
   const parts: ReactNode[] = [];
-  // Match markdown links [label](url) or bold **text**
-  const tokenRegex = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+)\*\*)/g;
+  // Match markdown links [label](url), bold **text**, or bare https?:// URLs
+  const tokenRegex = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+)\*\*|(https?:\/\/[^\s<>()]+))/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let keyIdx = 0;
@@ -30,6 +30,23 @@ function renderInline(text: string): ReactNode[] {
           {match[4]}
         </strong>
       );
+    } else if (match[5]) {
+      const cleanUrl = match[5].replace(/[.,;)]+$/, '');
+      const trailing = match[5].slice(cleanUrl.length);
+      parts.push(
+        <a
+          key={`url-${keyIdx++}`}
+          href={cleanUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="break-all font-medium text-[#14532D] underline underline-offset-2 hover:text-[#0F3F22]"
+        >
+          {cleanUrl}
+        </a>
+      );
+      if (trailing) {
+        parts.push(trailing);
+      }
     }
     lastIndex = tokenRegex.lastIndex;
   }
@@ -82,13 +99,19 @@ export function SimpleMarkdown({ content }: { content: string }) {
       continue;
     }
 
+    if (/^---+$/.test(line)) {
+      flushList();
+      blocks.push(<hr key={`hr-${keyCounter++}`} className="my-5 border-[#E2DDD3]" />);
+      continue;
+    }
+
     const headingMatch = line.match(/^(#{1,3})\s+(.*)$/);
     if (headingMatch) {
       flushList();
       blocks.push(
         <h4
           key={`h-${keyCounter++}`}
-          className="mt-4 mb-1.5 font-serif text-base font-semibold text-[#1C1917]"
+          className="mt-5 mb-2 font-serif text-lg font-semibold text-[#1C1917]"
         >
           {renderInline(headingMatch[2])}
         </h4>

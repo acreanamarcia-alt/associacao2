@@ -2,21 +2,38 @@ import {
   ArrowLeft,
   ArrowUpRight,
   BookMarked,
+  Building2,
   CalendarClock,
   CheckCircle2,
   Download,
+  Eye,
+  FileDown,
+  HeartHandshake,
+  Landmark,
   LayoutDashboard,
+  Loader2,
+  MapPin,
   MessageCircle,
   Package,
   Plus,
+  RotateCcw,
   Search,
   Trash2,
   Truck,
+  Users,
   Wallet,
 } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
+import {
+  AssistedPersonStatus,
+  useAssistedPeopleStore,
+} from '../data/assistedPeopleStore';
 import {
   AccountingKind,
+  buildAllDonationsAndPickupsWhatsappUrl,
+  buildAllDonationsWhatsappUrl,
+  buildAllPickupsWhatsappUrl,
+  buildDonationReceiptWhatsappUrl,
   buildMonthlyDonorWhatsappUrl,
   buildPickupWhatsappUrl,
   DonationProductItem,
@@ -29,12 +46,39 @@ import {
   ProductCategory,
   useDonationsStore,
 } from '../data/donationsStore';
+import {
+  INSTITUTION_PROFILE,
+  INSTITUTION_SPECS,
+  OFFICIAL_ASSETS,
+  VOLUNTEER_ROLES,
+} from '../data/institutionalData';
+import { useVisitorStats } from '../data/visitorStore';
+import { useVolunteersStore } from '../data/volunteersStore';
+import {
+  DashboardPdfCategories,
+  exportReportElementToPdf,
+  generateDashboardPdfReport,
+} from '../utils/dashboardPdfReport';
+import { DashboardReportPrintable } from './DashboardReportPrintable';
+import { EditaisCollectorPanel } from './EditaisCollectorPanel';
+import { InstitutionalFooterStrip } from './InstitutionalFooterStrip';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface AdminDashboardProps {
   onExitAdmin: () => void;
 }
 
-type AdminTab = 'overview' | 'receipts' | 'monthly-donors' | 'accounting' | 'pickups' | 'products';
+type AdminTab =
+  | 'overview'
+  | 'receipts'
+  | 'monthly-donors'
+  | 'accounting'
+  | 'pickups'
+  | 'products'
+  | 'assisted'
+  | 'reports'
+  | 'editais'
+  | 'corporate';
 
 export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
   const {
@@ -57,12 +101,50 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
     updatePickupStatus,
     addProductItem,
     updateProductItem,
+    resetAllFinancialData,
   } = useDonationsStore();
 
+  const {
+    assistedPeople,
+    addAssistedPerson,
+    updateAssistedPersonStatus,
+    deleteAssistedPerson,
+  } = useAssistedPeopleStore();
+  const { applications: volunteerApplications, removeApplication } = useVolunteersStore();
+  const { stats: visitorStats } = useVisitorStats();
+
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [confirmResetFinancial, setConfirmResetFinancial] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Todas' | DonationStatus>('Todas');
   const [typeFilter, setTypeFilter] = useState<'Todos' | DonationType>('Todos');
+
+  // Assisted people state
+  const [assistedSearch, setAssistedSearch] = useState('');
+  const [assistedStatusFilter, setAssistedStatusFilter] = useState<
+    'Todas' | AssistedPersonStatus
+  >('Todas');
+  const [assistFullName, setAssistFullName] = useState('');
+  const [assistEmail, setAssistEmail] = useState('');
+  const [assistPhone, setAssistPhone] = useState('');
+  const [assistNeighborhood, setAssistNeighborhood] = useState('');
+  const [assistHouseholdSize, setAssistHouseholdSize] = useState('1');
+  const [assistNotes, setAssistNotes] = useState('');
+  const [assistError, setAssistError] = useState('');
+
+  // PDF Report category selection & html2canvas refs
+  const reportPreviewRef = useRef<HTMLDivElement>(null);
+  const reportOffscreenRef = useRef<HTMLDivElement>(null);
+  const [pdfCategories, setPdfCategories] = useState<DashboardPdfCategories>({
+    donations: true,
+    volunteers: true,
+    revenues: true,
+    donatedFoods: true,
+    pickupsCount: true,
+    assistedPeople: true,
+  });
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfNotice, setPdfNotice] = useState('');
 
   // Monthly Donors filters & form
   const [monthlyFilter, setMonthlyFilter] = useState<'Todos' | MonthlyDonorStatus>('Todos');
@@ -237,9 +319,156 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
     URL.revokeObjectURL(url);
   };
 
+  const filteredAssistedPeople = useMemo(() => {
+    const q = assistedSearch.trim().toLowerCase();
+    return assistedPeople.filter((p) => {
+      const matchesStatus = assistedStatusFilter === 'Todas' || p.status === assistedStatusFilter;
+      const matchesQ =
+        !q ||
+        p.fullName.toLowerCase().includes(q) ||
+        p.email.toLowerCase().includes(q) ||
+        p.phone.toLowerCase().includes(q) ||
+        (p.neighborhood ?? '').toLowerCase().includes(q);
+      return matchesStatus && matchesQ;
+    });
+  }, [assistedPeople, assistedStatusFilter, assistedSearch]);
+
+  const completedPickupsCount = useMemo(
+    () => pickups.filter((p) => p.status === 'Coletada').length,
+    [pickups]
+  );
+
+  const handleDownloadPdf = async (
+    customCategories?: DashboardPdfCategories,
+    mode: 'html2canvas' | 'autotable' = 'html2canvas'
+  ) => {
+    const cats = customCategories ?? pdfCategories;
+    const anySelected = Object.values(cats).some(Boolean);
+    if (!anySelected) {
+      setPdfNotice('Selecione ao menos uma categoria para gerar o arquivo PDF.');
+      return;
+    }
+
+    if (mode === 'autotable') {
+      setPdfNotice('');
+      generateDashboardPdfReport({
+        donations,
+        accountingEntries,
+        monthlyDonors,
+        products,
+        pickups,
+        volunteerApplications,
+        assistedPeople,
+        visitorStats,
+        categories: cats,
+      });
+      setPdfNotice('Relatório PDF vetorial gerado e baixado com sucesso!');
+      return;
+    }
+
+    const targetEl =
+      activeTab === 'reports' ? reportPreviewRef.current : reportOffscreenRef.current;
+
+    if (!targetEl) {
+      generateDashboardPdfReport({
+        donations,
+        accountingEntries,
+        monthlyDonors,
+        products,
+        pickups,
+        volunteerApplications,
+        assistedPeople,
+        visitorStats,
+        categories: cats,
+      });
+      setPdfNotice('Relatório PDF gerado e baixado com sucesso!');
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    setPdfNotice('');
+    try {
+      await exportReportElementToPdf(targetEl, {
+        filename: `relatorio-dashboard-bom-pastor-${new Date().toISOString().slice(0, 10)}.pdf`,
+      });
+      setPdfNotice('Relatório PDF (jsPDF + html2canvas) gerado e baixado com sucesso!');
+    } catch (err) {
+      setPdfNotice(
+        `Não foi possível capturar a pré-visualização visual (${
+          err instanceof Error ? err.message : 'erro inesperado'
+        }). Tente o botão PDF Vetorial.`
+      );
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleAddAssistedSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const trimmedName = assistFullName.trim();
+    const trimmedEmail = assistEmail.trim();
+    const trimmedPhone = assistPhone.trim();
+
+    if (trimmedName.length < 3) {
+      setAssistError('Informe o nome completo da pessoa assistida.');
+      return;
+    }
+    if (!trimmedEmail.includes('@')) {
+      setAssistError('Informe um e-mail válido para contato.');
+      return;
+    }
+    if (trimmedPhone.replace(/\D/g, '').length < 8) {
+      setAssistError('Informe um telefone ou WhatsApp válido com DDD.');
+      return;
+    }
+
+    addAssistedPerson({
+      fullName: trimmedName,
+      email: trimmedEmail,
+      phone: trimmedPhone,
+      neighborhood: assistNeighborhood.trim() || 'Plácido de Castro - AC',
+      householdSize: Math.max(1, Number(assistHouseholdSize) || 1),
+      notes: assistNotes.trim(),
+    });
+
+    setAssistError('');
+    setAssistFullName('');
+    setAssistEmail('');
+    setAssistPhone('');
+    setAssistNeighborhood('');
+    setAssistHouseholdSize('1');
+    setAssistNotes('');
+  };
+
+  const handleExportAssistedCsv = () => {
+    const header = ['Data_Cadastro', 'Nome', 'Email', 'Telefone', 'Bairro', 'Pessoas_Familia', 'Status', 'Observacoes'];
+    const rows = filteredAssistedPeople.map((p) => [
+      p.createdAt,
+      `"${p.fullName.replace(/"/g, '""')}"`,
+      p.email,
+      p.phone,
+      `"${(p.neighborhood ?? '').replace(/"/g, '""')}"`,
+      String(p.householdSize ?? 1),
+      p.status,
+      `"${(p.notes ?? '').replace(/"/g, '""')}"`,
+    ]);
+    const csv = [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pessoas-assistidas-bom-pastor-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleExportCsv = () => {
     if (activeTab === 'accounting') {
       handleExportAccountingCsv();
+      return;
+    }
+    if (activeTab === 'assisted') {
+      handleExportAssistedCsv();
       return;
     }
     const header = [
@@ -383,6 +612,10 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
     accounting: 'Contabilidade & Balancete',
     pickups: 'Agendamento de Coleta de Doações',
     products: 'Lista de Produtos para Recebimento',
+    assisted: 'Cadastro de Pessoas Assistidas',
+    reports: 'Relatórios em PDF do Dashboard',
+    editais: 'Coleta de Editais (CNAE & TJAC)',
+    corporate: 'Dados Corporativos & Localização da Sede',
   };
 
   return (
@@ -392,7 +625,7 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
         <div>
           <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-4">
             <img
-              src="/assets/aistudio/logo_marca_ac506922.jpg"
+              src={OFFICIAL_ASSETS.logo}
               alt="Logo Projeto Sopão Acre"
               referrerPolicy="no-referrer"
               className="h-10 w-10 shrink-0 rounded-full border border-[#14532D]/30 bg-white object-cover"
@@ -508,15 +741,84 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                 {products.length}
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('assisted')}
+              className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                activeTab === 'assisted'
+                  ? 'bg-[#14532D] text-white'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <HeartHandshake className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Pessoas Assistidas</span>
+              </span>
+              <span className="font-mono text-[11px] tabular-nums opacity-80">
+                {assistedPeople.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('reports')}
+              className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                activeTab === 'reports'
+                  ? 'bg-[#14532D] text-white'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <FileDown className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Relatórios PDF</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('editais')}
+              className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                activeTab === 'editais'
+                  ? 'bg-[#14532D] text-white'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <Landmark className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Editais (CNAE &amp; TJAC)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('corporate')}
+              className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                activeTab === 'corporate'
+                  ? 'bg-[#14532D] text-white'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Dados Corporativos</span>
+            </button>
           </nav>
         </div>
 
         <div className="border-t border-slate-200 p-4 space-y-3">
+          <div className="rounded-md border border-[#14532D]/20 bg-[#14532D]/5 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#14532D]">
+              Visitantes do Portal
+            </p>
+            <p className="mt-1 font-mono text-lg font-bold tabular-nums text-slate-900">
+              {visitorStats.totalVisits.toLocaleString('pt-BR')} visitas
+            </p>
+            <p className="font-mono text-[11px] tabular-nums text-slate-500">
+              {visitorStats.uniqueVisitors.toLocaleString('pt-BR')} visitantes únicos
+            </p>
+          </div>
           <div className="space-y-1 text-xs text-slate-500">
             <p className="font-medium text-slate-800">Chaves PIX Oficiais</p>
             <p className="font-mono tabular-nums">CNPJ: {PIX_INFO.pixKey}</p>
             <p className="font-mono tabular-nums">Tel: {PIX_INFO.pixPhoneDisplay}</p>
           </div>
+          <PWAInstallButton variant="sidebar" />
           <button
             type="button"
             onClick={onExitAdmin}
@@ -534,7 +836,7 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4">
           <div>
             <p className="text-xs text-slate-500">
-              Administração / Financeiro &amp; Doações / {tabTitle[activeTab]}
+              Administração / Financeiro &amp; Institucional / {tabTitle[activeTab]}
             </p>
             <h1 className="font-serif text-xl font-semibold text-slate-900">
               {tabTitle[activeTab]}
@@ -551,13 +853,76 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
               <span>Portal</span>
             </button>
 
+            {confirmResetFinancial ? (
+              <div className="flex items-center gap-1.5 rounded-md border border-[#9A3412]/40 bg-[#FEF2F2] px-2.5 py-1">
+                <span className="text-[11px] font-medium text-[#9A3412]">
+                  Zerar todos os valores?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetAllFinancialData();
+                    setConfirmResetFinancial(false);
+                  }}
+                  className="cursor-pointer rounded bg-[#9A3412] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#7C2D12]"
+                >
+                  Confirmar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmResetFinancial(false)}
+                  className="cursor-pointer rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium text-slate-700"
+                >
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmResetFinancial(true)}
+                className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 whitespace-nowrap shrink-0"
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-[#9A3412]" aria-hidden="true" />
+                <span>Zerar Valores</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              disabled={isGeneratingPdf}
+              onClick={() =>
+                handleDownloadPdf({
+                  donations: true,
+                  volunteers: true,
+                  revenues: true,
+                  donatedFoods: true,
+                  pickupsCount: true,
+                  assistedPeople: true,
+                })
+              }
+              className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md border border-[#14532D] bg-[#FBF9F5] px-3.5 py-1.5 text-xs font-semibold text-[#14532D] hover:bg-[#14532D] hover:text-white whitespace-nowrap shrink-0 transition-colors disabled:opacity-60"
+            >
+              {isGeneratingPdf ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              ) : (
+                <FileDown className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              <span>{isGeneratingPdf ? 'Gerando PDF...' : 'Baixar Relatório PDF'}</span>
+            </button>
+
             <button
               type="button"
               onClick={handleExportCsv}
               className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 whitespace-nowrap shrink-0"
             >
               <Download className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{activeTab === 'accounting' ? 'Exportar Balancete CSV' : 'Exportar CSV'}</span>
+              <span>
+                {activeTab === 'accounting'
+                  ? 'Exportar Balancete CSV'
+                  : activeTab === 'assisted'
+                    ? 'Exportar Assistidas CSV'
+                    : 'Exportar CSV'}
+              </span>
             </button>
 
             <button
@@ -584,6 +949,10 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
               ['receipts', 'Recebimentos'],
               ['pickups', 'Coletas'],
               ['products', 'Produtos'],
+              ['assisted', 'Assistidas'],
+              ['reports', 'Relatórios PDF'],
+              ['editais', 'Editais TJAC'],
+              ['corporate', 'Corporativo'],
             ] as Array<[AdminTab, string]>
           ).map(([id, label]) => (
             <button
@@ -600,8 +969,22 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
         </div>
 
         <main className="flex-1 space-y-6 p-6">
-          {/* KPI Summary Strip (Accounting + Monthly Donors + Operations) */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {/* KPI Summary Strip (Visitors + Accounting + Monthly Donors + Operations) */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="rounded-lg border border-[#14532D]/30 bg-[#14532D] p-5 text-white">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-white/80">Contador de Visitantes</p>
+                <Eye className="h-4 w-4 text-white/80" aria-hidden="true" />
+              </div>
+              <p className="mt-2 font-mono text-2xl font-bold tabular-nums">
+                {visitorStats.totalVisits.toLocaleString('pt-BR')}
+              </p>
+              <p className="mt-1 inline-flex items-center gap-1 font-mono text-[11px] tabular-nums text-white/80">
+                <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{visitorStats.uniqueVisitors.toLocaleString('pt-BR')} visitantes únicos</span>
+              </p>
+            </div>
+
             <div className="rounded-lg border border-slate-200 bg-white p-5">
               <p className="text-xs font-medium text-slate-500">Saldo Líquido Contábil</p>
               <p
@@ -758,23 +1141,31 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {accountingEntries.slice(0, 6).map((a) => (
-                        <tr key={a.id} className="hover:bg-slate-50">
-                          <td className="py-3 pr-3 font-mono tabular-nums text-slate-600">
-                            {a.date}
-                          </td>
-                          <td className="py-3 pr-3 font-medium text-slate-900">{a.description}</td>
-                          <td className="py-3 pr-3 text-slate-600">{a.category}</td>
-                          <td
-                            className={`py-3 text-right font-mono font-semibold tabular-nums ${
-                              a.kind === 'Entrada' ? 'text-[#16A34A]' : 'text-[#DC2626]'
-                            }`}
-                          >
-                            {a.kind === 'Entrada' ? '+' : '-'} R${' '}
-                            {a.amountBRL.toFixed(2).replace('.', ',')}
+                      {accountingEntries.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-xs text-slate-500">
+                            Nenhum lançamento financeiro registrado (valores zerados em R$ 0,00).
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        accountingEntries.slice(0, 6).map((a) => (
+                          <tr key={a.id} className="hover:bg-slate-50">
+                            <td className="py-3 pr-3 font-mono tabular-nums text-slate-600">
+                              {a.date}
+                            </td>
+                            <td className="py-3 pr-3 font-medium text-slate-900">{a.description}</td>
+                            <td className="py-3 pr-3 text-slate-600">{a.category}</td>
+                            <td
+                              className={`py-3 text-right font-mono font-semibold tabular-nums ${
+                                a.kind === 'Entrada' ? 'text-[#16A34A]' : 'text-[#DC2626]'
+                              }`}
+                            >
+                              {a.kind === 'Entrada' ? '+' : '-'} R${' '}
+                              {a.amountBRL.toFixed(2).replace('.', ',')}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -942,47 +1333,55 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredAccounting.map((entry) => (
-                      <tr key={entry.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-mono tabular-nums text-slate-600">
-                          {entry.date}
-                        </td>
-                        <td className="px-4 py-3 font-mono tabular-nums text-slate-700">
-                          {entry.referenceCode}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-slate-800">{entry.category}</td>
-                        <td className="px-4 py-3 text-slate-700">{entry.description}</td>
-                        <td
-                          className={`px-4 py-3 text-right font-mono font-semibold tabular-nums ${
-                            entry.kind === 'Entrada' ? 'text-[#16A34A]' : 'text-[#DC2626]'
-                          }`}
-                        >
-                          {entry.kind === 'Entrada' ? '+' : '-'} R${' '}
-                          {entry.amountBRL.toFixed(2).replace('.', ',')}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleReconcileEntry(entry.id)}
-                              className={`cursor-pointer text-xs font-semibold ${
-                                entry.reconciled ? 'text-[#16A34A]' : 'text-[#D97706]'
-                              }`}
-                            >
-                              {entry.reconciled ? 'Conciliado' : 'Pendente'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => deleteAccountingEntry(entry.id)}
-                              aria-label={`Excluir lançamento ${entry.referenceCode}`}
-                              className="cursor-pointer rounded p-1 text-slate-400 hover:text-[#DC2626]"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
+                    {filteredAccounting.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-10 text-center text-xs text-slate-500">
+                          Nenhum lançamento contábil registrado (balancete zerado em R$ 0,00).
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredAccounting.map((entry) => (
+                        <tr key={entry.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-mono tabular-nums text-slate-600">
+                            {entry.date}
+                          </td>
+                          <td className="px-4 py-3 font-mono tabular-nums text-slate-700">
+                            {entry.referenceCode}
+                          </td>
+                          <td className="px-4 py-3 font-medium text-slate-800">{entry.category}</td>
+                          <td className="px-4 py-3 text-slate-700">{entry.description}</td>
+                          <td
+                            className={`px-4 py-3 text-right font-mono font-semibold tabular-nums ${
+                              entry.kind === 'Entrada' ? 'text-[#16A34A]' : 'text-[#DC2626]'
+                            }`}
+                          >
+                            {entry.kind === 'Entrada' ? '+' : '-'} R${' '}
+                            {entry.amountBRL.toFixed(2).replace('.', ',')}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleReconcileEntry(entry.id)}
+                                className={`cursor-pointer text-xs font-semibold ${
+                                  entry.reconciled ? 'text-[#16A34A]' : 'text-[#D97706]'
+                                }`}
+                              >
+                                {entry.reconciled ? 'Conciliado' : 'Pendente'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteAccountingEntry(entry.id)}
+                                aria-label={`Excluir lançamento ${entry.referenceCode}`}
+                                className="cursor-pointer rounded p-1 text-slate-400 hover:text-[#DC2626]"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1168,81 +1567,89 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredMonthlyDonors.map((donor) => (
-                      <tr key={donor.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-slate-900">{donor.name}</p>
-                          <p className="text-[11px] text-slate-500">
-                            {donor.email} · {donor.phone}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="font-mono text-slate-800">{donor.pixChannel}</p>
-                          <p className="text-[11px] text-slate-500">
-                            Todo dia {String(donor.dueDay).padStart(2, '0')} · Último:{' '}
-                            {donor.lastPaidMonth || '—'}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums text-slate-900">
-                          R$ {donor.monthlyAmountBRL.toFixed(2).replace('.', ',')}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-700">
-                          R$ {donor.totalContributedBRL.toFixed(2).replace('.', ',')}
-                        </td>
-                        <td className="px-4 py-3">
-                          <select
-                            aria-label={`Status do doador ${donor.name}`}
-                            value={donor.status}
-                            onChange={(e) =>
-                              updateMonthlyDonorStatus(
-                                donor.id,
-                                e.target.value as MonthlyDonorStatus
-                              )
-                            }
-                            className={`rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium ${
-                              donor.status === 'Em dia'
-                                ? 'text-[#16A34A]'
-                                : donor.status === 'Pausado'
-                                  ? 'text-slate-500'
-                                  : 'text-[#D97706]'
-                            }`}
-                          >
-                            <option value="Em dia">Em dia</option>
-                            <option value="Aguardando PIX">Aguardando PIX</option>
-                            <option value="Pausado">Pausado</option>
-                          </select>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => confirmMonthlyDonorPayment(donor.id)}
-                              className="inline-flex cursor-pointer items-center gap-1 rounded bg-[#14532D] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#0F3F22]"
-                            >
-                              <CheckCircle2 className="h-3 w-3" />
-                              <span>Confirmar PIX</span>
-                            </button>
-                            <a
-                              href={buildMonthlyDonorWhatsappUrl(donor)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label={`WhatsApp para ${donor.name}`}
-                              className="inline-flex items-center rounded border border-slate-300 px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
-                            >
-                              <MessageCircle className="h-3 w-3" />
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => deleteMonthlyDonor(donor.id)}
-                              aria-label={`Remover doador mensal ${donor.name}`}
-                              className="cursor-pointer rounded p-1 text-slate-400 hover:text-[#DC2626]"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
+                    {filteredMonthlyDonors.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-10 text-center text-xs text-slate-500">
+                          Nenhum doador mensal cadastrado (valores zerados em R$ 0,00).
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredMonthlyDonors.map((donor) => (
+                        <tr key={donor.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-slate-900">{donor.name}</p>
+                            <p className="text-[11px] text-slate-500">
+                              {donor.email} · {donor.phone}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-mono text-slate-800">{donor.pixChannel}</p>
+                            <p className="text-[11px] text-slate-500">
+                              Todo dia {String(donor.dueDay).padStart(2, '0')} · Último:{' '}
+                              {donor.lastPaidMonth || '—'}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums text-slate-900">
+                            R$ {donor.monthlyAmountBRL.toFixed(2).replace('.', ',')}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-700">
+                            R$ {donor.totalContributedBRL.toFixed(2).replace('.', ',')}
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              aria-label={`Status do doador ${donor.name}`}
+                              value={donor.status}
+                              onChange={(e) =>
+                                updateMonthlyDonorStatus(
+                                  donor.id,
+                                  e.target.value as MonthlyDonorStatus
+                                )
+                              }
+                              className={`rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium ${
+                                donor.status === 'Em dia'
+                                  ? 'text-[#16A34A]'
+                                  : donor.status === 'Pausado'
+                                    ? 'text-slate-500'
+                                    : 'text-[#D97706]'
+                              }`}
+                            >
+                              <option value="Em dia">Em dia</option>
+                              <option value="Aguardando PIX">Aguardando PIX</option>
+                              <option value="Pausado">Pausado</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => confirmMonthlyDonorPayment(donor.id)}
+                                className="inline-flex cursor-pointer items-center gap-1 rounded bg-[#14532D] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#0F3F22]"
+                              >
+                                <CheckCircle2 className="h-3 w-3" />
+                                <span>Confirmar PIX</span>
+                              </button>
+                              <a
+                                href={buildMonthlyDonorWhatsappUrl(donor)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`WhatsApp para ${donor.name}`}
+                                className="inline-flex items-center rounded border border-slate-300 px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => deleteMonthlyDonor(donor.id)}
+                                aria-label={`Remover doador mensal ${donor.name}`}
+                                className="cursor-pointer rounded p-1 text-slate-400 hover:text-[#DC2626]"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1258,17 +1665,38 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                     Controle de Recebimento de Doações
                   </h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    Confirme transferências PIX, pagamentos de checkout e entregas de produtos.
+                    Confirme transferências PIX, pagamentos de checkout, entregas de produtos e
+                    envie os recibos diretamente para o WhatsApp da associação.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowNewReceiptForm((prev) => !prev)}
-                  className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
-                >
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  <span>Registrar Recebimento</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={buildAllDonationsWhatsappUrl(filteredDonations)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md bg-[#25D366] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#1EBE57]"
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                    <span>Enviar Todos os Recibos WhatsApp</span>
+                  </a>
+                  <a
+                    href={buildAllDonationsAndPickupsWhatsappUrl(donations, pickups)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md border border-[#25D366] bg-white px-3.5 py-2 text-xs font-semibold text-[#14532D] hover:bg-[#F0FDF4]"
+                  >
+                    <MessageCircle className="h-4 w-4 text-[#25D366]" aria-hidden="true" />
+                    <span>Recibos + Coletas WhatsApp</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewReceiptForm((prev) => !prev)}
+                    className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span>Registrar Recebimento</span>
+                  </button>
+                </div>
               </div>
 
               {showNewReceiptForm && (
@@ -1449,73 +1877,91 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredDonations.map((d) => (
-                      <tr key={d.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3">
-                          <p className="font-mono font-medium tabular-nums text-slate-900">
-                            {d.referenceCode}
-                          </p>
-                          <p className="font-mono text-[11px] tabular-nums text-slate-500">
-                            {d.createdAt}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-slate-900">{d.donorName}</p>
-                          <p className="text-[11px] text-slate-500">
-                            {d.donorEmail} · {d.donorPhone}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3 text-slate-700">{d.type}</td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-900">
-                          {typeof d.amountBRL === 'number'
-                            ? `R$ ${d.amountBRL.toFixed(2).replace('.', ',')}`
-                            : d.itemsSummary}
-                        </td>
-                        <td className="px-4 py-3">
-                          <select
-                            aria-label={`Alterar status da doação ${d.referenceCode}`}
-                            value={d.status}
-                            onChange={(e) =>
-                              updateDonationStatus(d.id, e.target.value as DonationStatus)
-                            }
-                            className={`rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium ${
-                              d.status === 'Recebida'
-                                ? 'text-[#16A34A]'
-                                : d.status === 'Cancelada'
-                                  ? 'text-[#DC2626]'
-                                  : 'text-[#D97706]'
-                            }`}
-                          >
-                            <option value="Recebida">Recebida</option>
-                            <option value="Em Conferência">Em Conferência</option>
-                            <option value="Pendente">Pendente</option>
-                            <option value="Cancelada">Cancelada</option>
-                          </select>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            {d.status !== 'Recebida' && (
-                              <button
-                                type="button"
-                                onClick={() => updateDonationStatus(d.id, 'Recebida')}
-                                className="inline-flex cursor-pointer items-center gap-1 rounded bg-[#14532D] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#0F3F22]"
-                              >
-                                <CheckCircle2 className="h-3 w-3" />
-                                <span>Confirmar</span>
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => deleteDonation(d.id)}
-                              aria-label={`Excluir registro ${d.referenceCode}`}
-                              className="cursor-pointer rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#DC2626]"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
+                    {filteredDonations.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-10 text-center text-xs text-slate-500">
+                          Nenhuma doação registrada (valores financeiros zerados em R$ 0,00).
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredDonations.map((d) => (
+                        <tr key={d.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <p className="font-mono font-medium tabular-nums text-slate-900">
+                              {d.referenceCode}
+                            </p>
+                            <p className="font-mono text-[11px] tabular-nums text-slate-500">
+                              {d.createdAt}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-slate-900">{d.donorName}</p>
+                            <p className="text-[11px] text-slate-500">
+                              {d.donorEmail} · {d.donorPhone}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">{d.type}</td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-900">
+                            {typeof d.amountBRL === 'number'
+                              ? `R$ ${d.amountBRL.toFixed(2).replace('.', ',')}`
+                              : d.itemsSummary}
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              aria-label={`Alterar status da doação ${d.referenceCode}`}
+                              value={d.status}
+                              onChange={(e) =>
+                                updateDonationStatus(d.id, e.target.value as DonationStatus)
+                              }
+                              className={`rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium ${
+                                d.status === 'Recebida'
+                                  ? 'text-[#16A34A]'
+                                  : d.status === 'Cancelada'
+                                    ? 'text-[#DC2626]'
+                                    : 'text-[#D97706]'
+                              }`}
+                            >
+                              <option value="Recebida">Recebida</option>
+                              <option value="Em Conferência">Em Conferência</option>
+                              <option value="Pendente">Pendente</option>
+                              <option value="Cancelada">Cancelada</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center gap-2">
+                              <a
+                                href={buildDonationReceiptWhatsappUrl(d)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`Enviar recibo ${d.referenceCode} pelo WhatsApp`}
+                                className="inline-flex items-center gap-1 rounded bg-[#25D366] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#1EBE57]"
+                              >
+                                <MessageCircle className="h-3 w-3" aria-hidden="true" />
+                                <span>Recibo WhatsApp</span>
+                              </a>
+                              {d.status !== 'Recebida' && (
+                                <button
+                                  type="button"
+                                  onClick={() => updateDonationStatus(d.id, 'Recebida')}
+                                  className="inline-flex cursor-pointer items-center gap-1 rounded bg-[#14532D] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#0F3F22]"
+                                >
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  <span>Confirmar</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => deleteDonation(d.id)}
+                                aria-label={`Excluir registro ${d.referenceCode}`}
+                                className="cursor-pointer rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#DC2626]"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1540,16 +1986,27 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowNewPickupForm((prev) => !prev)}
-                  className="inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
-                >
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  <span>
-                    {showNewPickupForm ? 'Ocultar formulário' : 'Novo Agendamento de Coleta'}
-                  </span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={buildAllPickupsWhatsappUrl(pickups)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md bg-[#25D366] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#1EBE57]"
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                    <span>Enviar Todas as Coletas WhatsApp</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPickupForm((prev) => !prev)}
+                    className="inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span>
+                      {showNewPickupForm ? 'Ocultar formulário' : 'Novo Agendamento de Coleta'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {showNewPickupForm && (
@@ -1717,98 +2174,104 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
               )}
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {pickups.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-5"
-                  >
-                    <div>
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="font-mono text-xs tabular-nums text-slate-500">
-                            {p.preferredDate} · {p.preferredShift}
-                          </p>
-                          <h3 className="mt-1 font-serif text-lg font-semibold text-slate-900">
-                            {p.collaboratorName}
-                          </h3>
-                          <p className="text-xs text-slate-600">
-                            {p.collaboratorEmail} ·{' '}
-                            <span className="font-mono tabular-nums">{p.collaboratorPhone}</span>
-                          </p>
+                {pickups.length === 0 ? (
+                  <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-xs text-slate-500 lg:col-span-2">
+                    Nenhum agendamento de coleta cadastrado até o momento.
+                  </div>
+                ) : (
+                  pickups.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-5"
+                    >
+                      <div>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-mono text-xs tabular-nums text-slate-500">
+                              {p.preferredDate} · {p.preferredShift}
+                            </p>
+                            <h3 className="mt-1 font-serif text-lg font-semibold text-slate-900">
+                              {p.collaboratorName}
+                            </h3>
+                            <p className="text-xs text-slate-600">
+                              {p.collaboratorEmail} ·{' '}
+                              <span className="font-mono tabular-nums">{p.collaboratorPhone}</span>
+                            </p>
+                          </div>
+
+                          <select
+                            aria-label={`Status da coleta de ${p.collaboratorName}`}
+                            value={p.status}
+                            onChange={(e) =>
+                              updatePickupStatus(p.id, e.target.value as PickupStatus)
+                            }
+                            className={`rounded border border-slate-200 px-2.5 py-1 text-xs font-semibold ${
+                              p.status === 'Coletada'
+                                ? 'text-[#16A34A]'
+                                : p.status === 'Cancelada'
+                                  ? 'text-[#DC2626]'
+                                  : 'text-[#D97706]'
+                            }`}
+                          >
+                            <option value="Agendada">Agendada</option>
+                            <option value="Em Rota">Em Rota</option>
+                            <option value="Coletada">Coletada</option>
+                            <option value="Cancelada">Cancelada</option>
+                          </select>
                         </div>
 
-                        <select
-                          aria-label={`Status da coleta de ${p.collaboratorName}`}
-                          value={p.status}
-                          onChange={(e) =>
-                            updatePickupStatus(p.id, e.target.value as PickupStatus)
-                          }
-                          className={`rounded border border-slate-200 px-2.5 py-1 text-xs font-semibold ${
-                            p.status === 'Coletada'
-                              ? 'text-[#16A34A]'
-                              : p.status === 'Cancelada'
-                                ? 'text-[#DC2626]'
-                                : 'text-[#D97706]'
-                          }`}
-                        >
-                          <option value="Agendada">Agendada</option>
-                          <option value="Em Rota">Em Rota</option>
-                          <option value="Coletada">Coletada</option>
-                          <option value="Cancelada">Cancelada</option>
-                        </select>
-                      </div>
-
-                      <p className="mt-3 text-xs text-slate-700">
-                        <strong className="font-medium text-slate-900">Endereço:</strong>{' '}
-                        {p.pickupAddress}
-                      </p>
-
-                      <div className="mt-3 border-t border-slate-100 pt-3">
-                        <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                          Produtos da coleta
+                        <p className="mt-3 text-xs text-slate-700">
+                          <strong className="font-medium text-slate-900">Endereço:</strong>{' '}
+                          {p.pickupAddress}
                         </p>
-                        <ul className="mt-1.5 space-y-1 text-xs text-slate-800">
-                          {p.items.map((it) => (
-                            <li key={it.productId} className="flex justify-between">
-                              <span>{it.productName}</span>
-                              <span className="font-mono tabular-nums font-medium">
-                                {it.quantity} {it.unit}
-                              </span>
-                            </li>
-                          ))}
-                          {p.customItemsText && (
-                            <li className="text-slate-600">Outros: {p.customItemsText}</li>
-                          )}
-                        </ul>
+
+                        <div className="mt-3 border-t border-slate-100 pt-3">
+                          <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                            Produtos da coleta
+                          </p>
+                          <ul className="mt-1.5 space-y-1 text-xs text-slate-800">
+                            {p.items.map((it) => (
+                              <li key={it.productId} className="flex justify-between">
+                                <span>{it.productName}</span>
+                                <span className="font-mono tabular-nums font-medium">
+                                  {it.quantity} {it.unit}
+                                </span>
+                              </li>
+                            ))}
+                            {p.customItemsText && (
+                              <li className="text-slate-600">Outros: {p.customItemsText}</li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                        <a
+                          href={buildPickupWhatsappUrl(p)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-[38px] items-center gap-1.5 rounded-md bg-[#14532D] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>
+                            Enviar agendamento WhatsApp ({PIX_INFO.pickupWhatsappDisplay})
+                          </span>
+                          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </a>
+
+                        {p.status !== 'Coletada' && (
+                          <button
+                            type="button"
+                            onClick={() => updatePickupStatus(p.id, 'Coletada')}
+                            className="cursor-pointer text-xs font-semibold text-[#16A34A] hover:underline"
+                          >
+                            Marcar como Coletada
+                          </button>
+                        )}
                       </div>
                     </div>
-
-                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                      <a
-                        href={buildPickupWhatsappUrl(p)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex min-h-[38px] items-center gap-1.5 rounded-md bg-[#14532D] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
-                      >
-                        <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>
-                          Enviar agendamento WhatsApp ({PIX_INFO.pickupWhatsappDisplay})
-                        </span>
-                        <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-                      </a>
-
-                      {p.status !== 'Coletada' && (
-                        <button
-                          type="button"
-                          onClick={() => updatePickupStatus(p.id, 'Coletada')}
-                          className="cursor-pointer text-xs font-semibold text-[#16A34A] hover:underline"
-                        >
-                          Marcar como Coletada
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -1932,7 +2395,629 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
               </div>
             </div>
           )}
+
+          {/* TAB 6B: CADASTRO DE PESSOAS ASSISTIDAS PELA ASSOCIAÇÃO */}
+          {activeTab === 'assisted' && (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-5">
+                <div>
+                  <h2 className="font-serif text-lg font-semibold text-slate-900">
+                    Cadastro de Pessoas Assistidas pela Associação
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Registro nominal das pessoas e famílias atendidas pelo Projeto Sopão (nome,
+                    e-mail, telefone e acompanhamento comunitário).
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="rounded bg-slate-100 px-3 py-1.5 font-mono font-semibold text-slate-800">
+                    Total: {assistedPeople.length} cadastrada(s)
+                  </span>
+                </div>
+              </div>
+
+              <form
+                onSubmit={handleAddAssistedSubmit}
+                className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-6 sm:grid-cols-12"
+              >
+                <div className="sm:col-span-4">
+                  <label
+                    htmlFor="assist-full-name"
+                    className="block text-xs font-medium text-slate-700"
+                  >
+                    Nome completo *
+                  </label>
+                  <input
+                    id="assist-full-name"
+                    type="text"
+                    required
+                    value={assistFullName}
+                    onChange={(e) => setAssistFullName(e.target.value)}
+                    placeholder="Ex.: Francisca das Chagas Lima"
+                    className="mt-1 min-h-[40px] w-full rounded border border-slate-300 px-3 text-sm"
+                  />
+                </div>
+
+                <div className="sm:col-span-4">
+                  <label
+                    htmlFor="assist-email"
+                    className="block text-xs font-medium text-slate-700"
+                  >
+                    E-mail *
+                  </label>
+                  <input
+                    id="assist-email"
+                    type="email"
+                    required
+                    value={assistEmail}
+                    onChange={(e) => setAssistEmail(e.target.value)}
+                    placeholder="pessoa.assistida@email.com"
+                    className="mt-1 min-h-[40px] w-full rounded border border-slate-300 px-3 text-sm"
+                  />
+                </div>
+
+                <div className="sm:col-span-4">
+                  <label
+                    htmlFor="assist-phone"
+                    className="block text-xs font-medium text-slate-700"
+                  >
+                    Telefone / WhatsApp *
+                  </label>
+                  <input
+                    id="assist-phone"
+                    type="tel"
+                    required
+                    value={assistPhone}
+                    onChange={(e) => setAssistPhone(e.target.value)}
+                    placeholder="(68) 99900-0000"
+                    className="mt-1 min-h-[40px] w-full rounded border border-slate-300 px-3 text-sm"
+                  />
+                </div>
+
+                <div className="sm:col-span-4">
+                  <label
+                    htmlFor="assist-neighborhood"
+                    className="block text-xs font-medium text-slate-700"
+                  >
+                    Bairro / Comunidade
+                  </label>
+                  <input
+                    id="assist-neighborhood"
+                    type="text"
+                    value={assistNeighborhood}
+                    onChange={(e) => setAssistNeighborhood(e.target.value)}
+                    placeholder="Ex.: Bairro Olaria"
+                    className="mt-1 min-h-[40px] w-full rounded border border-slate-300 px-3 text-sm"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="assist-household"
+                    className="block text-xs font-medium text-slate-700"
+                  >
+                    Nº na família
+                  </label>
+                  <input
+                    id="assist-household"
+                    type="number"
+                    min={1}
+                    value={assistHouseholdSize}
+                    onChange={(e) => setAssistHouseholdSize(e.target.value)}
+                    className="mt-1 min-h-[40px] w-full rounded border border-slate-300 px-3 font-mono text-sm"
+                  />
+                </div>
+
+                <div className="sm:col-span-4">
+                  <label
+                    htmlFor="assist-notes"
+                    className="block text-xs font-medium text-slate-700"
+                  >
+                    Observações de atendimento
+                  </label>
+                  <input
+                    id="assist-notes"
+                    type="text"
+                    value={assistNotes}
+                    onChange={(e) => setAssistNotes(e.target.value)}
+                    placeholder="Ex.: Retirada de kits semanais / idoso"
+                    className="mt-1 min-h-[40px] w-full rounded border border-slate-300 px-3 text-sm"
+                  />
+                </div>
+
+                <div className="flex items-end sm:col-span-2">
+                  <button
+                    type="submit"
+                    className="inline-flex min-h-[40px] w-full cursor-pointer items-center justify-center gap-1.5 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span>Cadastrar</span>
+                  </button>
+                </div>
+
+                {assistError && (
+                  <p role="alert" className="text-xs font-medium text-[#DC2626] sm:col-span-12">
+                    {assistError}
+                  </p>
+                )}
+              </form>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4">
+                <div className="flex items-center gap-1 rounded-md bg-slate-100 p-1">
+                  {(['Todas', 'Ativa', 'Inativa'] as const).map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setAssistedStatusFilter(st)}
+                      className={`cursor-pointer rounded px-3 py-1.5 text-xs font-medium ${
+                        assistedStatusFilter === st
+                          ? 'bg-white text-slate-900 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative">
+                  <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="search"
+                    value={assistedSearch}
+                    onChange={(e) => setAssistedSearch(e.target.value)}
+                    placeholder="Buscar nome, e-mail ou telefone..."
+                    className="min-h-[38px] w-64 rounded border border-slate-300 bg-white py-1.5 pr-3 pl-8 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 uppercase tracking-wider text-slate-500">
+                      <th className="px-4 py-3 font-medium">Nome Completo</th>
+                      <th className="px-4 py-3 font-medium">E-mail</th>
+                      <th className="px-4 py-3 font-medium">Telefone</th>
+                      <th className="px-4 py-3 font-medium">Bairro / Família</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 text-right font-medium">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredAssistedPeople.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-10 text-center text-xs text-slate-500">
+                          Nenhuma pessoa assistida cadastrada até o momento.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredAssistedPeople.map((person) => (
+                        <tr key={person.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-slate-900">{person.fullName}</p>
+                            <p className="font-mono text-[11px] text-slate-500">
+                              Cadastro: {person.createdAt}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">{person.email}</td>
+                          <td className="px-4 py-3 font-mono tabular-nums text-slate-800">
+                            {person.phone}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            <p>{person.neighborhood || 'Plácido de Castro - AC'}</p>
+                            <p className="text-[11px] text-slate-500">
+                              {person.householdSize ?? 1} pessoa(s) na família
+                              {person.notes ? ` · ${person.notes}` : ''}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              aria-label={`Status de ${person.fullName}`}
+                              value={person.status}
+                              onChange={(e) =>
+                                updateAssistedPersonStatus(
+                                  person.id,
+                                  e.target.value as AssistedPersonStatus
+                                )
+                              }
+                              className={`rounded border border-slate-200 bg-white px-2 py-1 text-xs font-semibold ${
+                                person.status === 'Ativa' ? 'text-[#16A34A]' : 'text-slate-500'
+                              }`}
+                            >
+                              <option value="Ativa">Ativa</option>
+                              <option value="Inativa">Inativa</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => deleteAssistedPerson(person.id)}
+                              aria-label={`Remover cadastro de ${person.fullName}`}
+                              className="cursor-pointer rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#DC2626]"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6C: RELATÓRIOS PDF DO DASHBOARD POR CATEGORIA */}
+          {activeTab === 'reports' && (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-6">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-[#14532D]">
+                    Exportação Oficial em Arquivo PDF · jsPDF + html2canvas
+                  </p>
+                  <h2 className="mt-1 font-serif text-xl font-semibold text-slate-900">
+                    Relatório Categorizado do Dashboard
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Selecione as categorias abaixo (Doações, Voluntários, Receitas, Alimentos,
+                    Coletas Feitas e Assistidos) e exporte o documento A4 em PDF com captura visual
+                    html2canvas ou formato vetorial.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    disabled={isGeneratingPdf}
+                    onClick={() => handleDownloadPdf(undefined, 'html2canvas')}
+                    className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md bg-[#14532D] px-5 py-2.5 text-xs font-semibold text-white hover:bg-[#0F3F22] disabled:opacity-60"
+                  >
+                    {isGeneratingPdf ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <FileDown className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    <span>
+                      {isGeneratingPdf
+                        ? 'Capturando e Gerando PDF...'
+                        : 'Exportar PDF (jsPDF + html2canvas)'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isGeneratingPdf}
+                    onClick={() => handleDownloadPdf(undefined, 'autotable')}
+                    className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-[#14532D] bg-white px-4 py-2.5 text-xs font-semibold text-[#14532D] hover:bg-[#F4F0E8] disabled:opacity-60"
+                  >
+                    <Download className="h-4 w-4" aria-hidden="true" />
+                    <span>PDF Vetorial (Tabelas)</span>
+                  </button>
+                </div>
+              </div>
+
+              {pdfNotice && (
+                <div className="rounded-md border border-[#14532D]/30 bg-[#F4F0E8] px-4 py-3 text-xs font-medium text-[#14532D]">
+                  {pdfNotice}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {(
+                  [
+                    {
+                      key: 'donations',
+                      title: 'Relatório de Doações',
+                      metric: `${donations.length} registro(s)`,
+                      detail: `${metrics.receivedCount} liquidadas · Pendentes R$ ${metrics.pendingBRL
+                        .toFixed(2)
+                        .replace('.', ',')}`,
+                    },
+                    {
+                      key: 'volunteers',
+                      title: 'Relatório de Voluntários',
+                      metric: `${VOLUNTEER_ROLES.length} frentes · ${volunteerApplications.length} inscrição(ões)`,
+                      detail: `${VOLUNTEER_ROLES.reduce(
+                        (s, r) => s + r.spotsFilled,
+                        0
+                      )}/${VOLUNTEER_ROLES.reduce((s, r) => s + r.spotsTotal, 0)} posições ocupadas`,
+                    },
+                    {
+                      key: 'revenues',
+                      title: 'Relatórios de Receitas de Doações',
+                      metric: `R$ ${metrics.totalEntradas.toFixed(2).replace('.', ',')}`,
+                      detail: `Saldo líquido R$ ${metrics.netBalance
+                        .toFixed(2)
+                        .replace('.', ',')} · MRR PIX R$ ${metrics.monthlyExpectedMRR
+                        .toFixed(2)
+                        .replace('.', ',')}`,
+                    },
+                    {
+                      key: 'donatedFoods',
+                      title: 'Relatórios de Comidas Doadas',
+                      metric: `${metrics.totalProductUnits} unid/kg recebidas`,
+                      detail: `${products.length} tipos de alimentos/insumos monitorados`,
+                    },
+                    {
+                      key: 'pickupsCount',
+                      title: 'Número de Coletas Feitas',
+                      metric: `${completedPickupsCount} coleta(s) feita(s)`,
+                      detail: `${metrics.pendingPickups} agendada(s)/em rota · ${pickups.length} total`,
+                    },
+                    {
+                      key: 'assistedPeople',
+                      title: 'Cadastro de Pessoas Assistidas',
+                      metric: `${assistedPeople.length} pessoa(s)`,
+                      detail: `${assistedPeople.filter((p) => p.status === 'Ativa').length} ativa(s) no acompanhamento`,
+                    },
+                  ] as Array<{
+                    key: keyof DashboardPdfCategories;
+                    title: string;
+                    metric: string;
+                    detail: string;
+                  }>
+                ).map((cat) => {
+                  const checked = pdfCategories[cat.key];
+                  return (
+                    <label
+                      key={cat.key}
+                      className={`flex cursor-pointer flex-col justify-between rounded-lg border p-5 transition-colors ${
+                        checked
+                          ? 'border-[#14532D] bg-white shadow-xs'
+                          : 'border-slate-200 bg-slate-50 opacity-75'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-serif text-base font-semibold text-slate-900">
+                            {cat.title}
+                          </p>
+                          <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-[#14532D]">
+                            {cat.metric}
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) =>
+                            setPdfCategories((prev) => ({
+                              ...prev,
+                              [cat.key]: e.target.checked,
+                            }))
+                          }
+                          className="mt-1 h-4 w-4 accent-[#14532D]"
+                        />
+                      </div>
+                      <p className="mt-3 border-t border-slate-100 pt-2.5 text-xs text-slate-600">
+                        {cat.detail}
+                      </p>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Quick table of registered volunteers inside Reports view */}
+              {volunteerApplications.length > 0 && (
+                <div className="rounded-lg border border-slate-200 bg-white p-5">
+                  <h3 className="font-serif text-base font-semibold text-slate-900">
+                    Voluntários Inscritos via Portal ({volunteerApplications.length})
+                  </h3>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-500">
+                          <th className="py-2 pr-3 font-medium">Nome</th>
+                          <th className="py-2 pr-3 font-medium">Telefone</th>
+                          <th className="py-2 pr-3 font-medium">Vaga</th>
+                          <th className="py-2 pr-3 font-medium">Disponibilidade</th>
+                          <th className="py-2 text-right font-medium">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {volunteerApplications.map((v) => (
+                          <tr key={v.id}>
+                            <td className="py-2.5 pr-3 font-medium text-slate-900">{v.fullName}</td>
+                            <td className="py-2.5 pr-3 font-mono tabular-nums text-slate-700">
+                              {v.phone}
+                            </td>
+                            <td className="py-2.5 pr-3 text-slate-700">{v.roleTitle}</td>
+                            <td className="py-2.5 pr-3 text-slate-600">{v.availability}</td>
+                            <td className="py-2.5 text-right">
+                              <button
+                                type="button"
+                                onClick={() => removeApplication(v.id)}
+                                aria-label={`Remover voluntário ${v.fullName}`}
+                                className="cursor-pointer rounded p-1 text-slate-400 hover:text-[#DC2626]"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Live A4 Printable Preview captured by html2canvas + jsPDF */}
+              <div className="rounded-lg border border-slate-200 bg-slate-100 p-4 sm:p-6">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+                    Pré-visualização A4 do Documento (Captura html2canvas + jsPDF)
+                  </p>
+                  <button
+                    type="button"
+                    disabled={isGeneratingPdf}
+                    onClick={() => handleDownloadPdf(undefined, 'html2canvas')}
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded bg-[#14532D] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#0F3F22] disabled:opacity-60"
+                  >
+                    <FileDown className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Baixar este documento em PDF</span>
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto rounded border border-slate-300 bg-white shadow-sm">
+                  <div className="mx-auto w-[794px]">
+                    <DashboardReportPrintable
+                      ref={reportPreviewRef}
+                      donations={donations}
+                      accountingEntries={accountingEntries}
+                      monthlyDonors={monthlyDonors}
+                      products={products}
+                      pickups={pickups}
+                      volunteerApplications={volunteerApplications}
+                      assistedPeople={assistedPeople}
+                      visitorStats={visitorStats}
+                      categories={pdfCategories}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 7: COLETA DE EDITAIS (CNAE & TJAC) */}
+          {activeTab === 'editais' && <EditaisCollectorPanel variant="admin" />}
+
+          {/* TAB 8: DADOS CORPORATIVOS & LOCALIZAÇÃO DA SEDE */}
+          {activeTab === 'corporate' && (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+              <div className="rounded-lg border border-slate-200 bg-white p-6 lg:col-span-6">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[#14532D]">
+                  Ficha Corporativa Oficial
+                </p>
+                <h2 className="mt-1 font-serif text-xl font-semibold text-slate-900">
+                  {INSTITUTION_PROFILE.legalName}
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Dados oficiais, CNAE de atuação e chaves financeiras registradas para controle
+                  institucional.
+                </p>
+
+                <dl className="mt-5 divide-y divide-slate-100 border-y border-slate-200 text-xs">
+                  {INSTITUTION_SPECS.map((spec) => (
+                    <div key={spec.label} className="py-3">
+                      <dt className="text-[11px] uppercase tracking-wider text-slate-500">
+                        {spec.label}
+                      </dt>
+                      <dd
+                        className={`mt-1 text-slate-900 ${
+                          spec.mono ? 'font-mono font-medium tabular-nums' : 'font-medium'
+                        }`}
+                      >
+                        {spec.value}
+                      </dd>
+                    </div>
+                  ))}
+                  <div className="py-3">
+                    <dt className="text-[11px] uppercase tracking-wider text-slate-500">
+                      Chaves PIX Oficiais
+                    </dt>
+                    <dd className="mt-1 font-mono font-medium tabular-nums text-slate-900">
+                      CNPJ: {PIX_INFO.pixKey} · Telefone: {PIX_INFO.pixPhoneDisplay}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-6 lg:col-span-6">
+                <div>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-[#14532D]">
+                        Localização da Associação
+                      </p>
+                      <h2 className="mt-1 font-serif text-xl font-semibold text-slate-900">
+                        Mapa da Sede · Bairro Olaria
+                      </h2>
+                    </div>
+
+                    <a
+                      href={INSTITUTION_PROFILE.googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-[38px] items-center gap-1.5 rounded-md bg-[#14532D] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
+                    >
+                      <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Abrir no Google Maps</span>
+                      <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </a>
+                  </div>
+
+                  <p className="mt-2 text-xs text-slate-600">{INSTITUTION_PROFILE.fullAddress}</p>
+
+                  <a
+                    href={INSTITUTION_PROFILE.googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative mt-4 block overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                  >
+                    <img
+                      src={OFFICIAL_ASSETS.headquartersMapImage}
+                      alt={`Mapa da sede da ${INSTITUTION_PROFILE.legalName} em ${INSTITUTION_PROFILE.fullAddress}`}
+                      referrerPolicy="no-referrer"
+                      className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                    <span className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-md bg-[#14532D] px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
+                      <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Ver localização exata no Google Maps</span>
+                    </span>
+                  </a>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 text-xs text-slate-600">
+                  <span>Comarca de Plácido de Castro · Estado do Acre</span>
+                  <a
+                    href={INSTITUTION_PROFILE.googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-semibold text-[#14532D] hover:underline"
+                  >
+                    <span>Link direto Google Maps</span>
+                    <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
+
+        {/* Offscreen A4 printable container for instant html2canvas + jsPDF export from any admin tab */}
+        {activeTab !== 'reports' && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              left: '-12000px',
+              top: 0,
+              pointerEvents: 'none',
+            }}
+          >
+            <DashboardReportPrintable
+              ref={reportOffscreenRef}
+              donations={donations}
+              accountingEntries={accountingEntries}
+              monthlyDonors={monthlyDonors}
+              products={products}
+              pickups={pickups}
+              volunteerApplications={volunteerApplications}
+              assistedPeople={assistedPeople}
+              visitorStats={visitorStats}
+              categories={{
+                donations: true,
+                volunteers: true,
+                revenues: true,
+                donatedFoods: true,
+                pickupsCount: true,
+                assistedPeople: true,
+              }}
+            />
+          </div>
+        )}
+
+        <InstitutionalFooterStrip variant="admin" />
       </div>
     </div>
   );

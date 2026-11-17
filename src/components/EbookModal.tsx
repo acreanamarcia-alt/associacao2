@@ -1,6 +1,7 @@
 import { Download, ExternalLink, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { INSTITUTION_PROFILE, OFFICIAL_ASSETS } from '../data/institutionalData';
+import { InstitutionalFooterStrip } from './InstitutionalFooterStrip';
 
 interface EbookModalProps {
   isOpen: boolean;
@@ -81,6 +82,8 @@ export function EbookModal({ isOpen, onClose }: EbookModalProps) {
             className="h-full w-full border-0"
           />
         </div>
+
+        <InstitutionalFooterStrip variant="compact" />
       </div>
     </div>
   );

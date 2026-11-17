@@ -49,32 +49,50 @@ export interface InstitutionalChapter {
 }
 
 export const OFFICIAL_ASSETS = {
-  logo: '/assets/aistudio/logo_marca_ac506922.jpg',
+  logo: '/assets/aistudio/IMG_ad5ccc9b-22cd-4a93-8ada-0735a5091c06_c37db6af.jpg',
   ebookPdf:
     '/assets/aistudio/E-book_Hist_rico_-_Associa__o_Recanto_Social_Bom_Pastor__1__6c01c77d.pdf',
+  headquartersMapImage: '/src/assets/images/mapa_sede_placido_1794899018005.jpg',
 };
 
 export const INSTITUTION_PROFILE = {
   legalName: 'Associação Recanto Social Bom Pastor',
   popularName: 'Projeto Sopão',
   cnpj: '33.314.701/0001-54',
+  cnaePrincipal: '94.30-8-00 — Atividades de associações de defesa de direitos sociais',
+  cnaesSecundarios: [
+    '88.00-6-00 — Serviços de assistência social sem alojamento',
+    '94.99-5-00 — Atividades associativas não especificadas anteriormente',
+  ],
+  tjacEditaisUrl: 'https://www.tjac.jus.br/adm/editais/',
   foundedAt: '26 de fevereiro de 2019',
   foundedShort: '26/02/2019',
   address: 'Rua Zuila Ferreira de Freitas, nº 933, Bairro Olaria',
   cityState: 'Plácido de Castro - AC',
   cep: 'CEP 69928-000',
+  fullAddress:
+    'Rua Zuila Ferreira de Freitas, nº 933, Bairro Olaria, Plácido de Castro - AC, CEP 69928-000',
+  googleMapsUrl:
+    'https://www.google.com/maps/search/?api=1&query=Rua+Zuila+Ferreira+de+Freitas+933+Bairro+Olaria+Placido+de+Castro+AC+69928-000',
   phoneDisplay: '(68) 99958-7200',
+  pixPhoneDisplay: '+55 68 9958-7200',
   whatsappDigits: '5568999587200',
   stateLaw: 'Lei Ordinária nº 3.809, de 22 de novembro de 2021',
   stateLawShort: 'Lei Estadual nº 3.809/2021',
   fomento: 'Termo de Fomento nº 25 · SEASDH (R$ 100.000,00)',
   judiciary: 'TJAC · Vara Única Criminal de Plácido de Castro',
+  partners: 'Prefeitura de Plácido de Castro · SEASDH · TJAC',
 };
 
 export const INSTITUTION_SPECS = [
   { label: 'Razão Social', value: INSTITUTION_PROFILE.legalName },
   { label: 'Nome Popular', value: INSTITUTION_PROFILE.popularName },
   { label: 'CNPJ', value: INSTITUTION_PROFILE.cnpj, mono: true },
+  { label: 'CNAE Principal (OSC)', value: INSTITUTION_PROFILE.cnaePrincipal, mono: true },
+  {
+    label: 'CNAEs Correlatos (Assistência Social)',
+    value: INSTITUTION_PROFILE.cnaesSecundarios.join(' · '),
+  },
   { label: 'Data de Fundação', value: INSTITUTION_PROFILE.foundedAt },
   {
     label: 'Endereço da Sede',

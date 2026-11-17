@@ -100,12 +100,231 @@ interface WebSourceResult {
   uri: string;
 }
 
+interface VisitorStats {
+  totalVisits: number;
+  uniqueVisitors: number;
+  updatedAt: string;
+}
+
+const VISITOR_FILE = path.resolve(__dirname, ".visitor-counter.json");
+
+function readVisitorStats(): VisitorStats {
+  try {
+    if (fs.existsSync(VISITOR_FILE)) {
+      const raw = fs.readFileSync(VISITOR_FILE, "utf-8");
+      const parsed = JSON.parse(raw) as Partial<VisitorStats>;
+      return {
+        totalVisits: typeof parsed.totalVisits === "number" ? parsed.totalVisits : 0,
+        uniqueVisitors: typeof parsed.uniqueVisitors === "number" ? parsed.uniqueVisitors : 0,
+        updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString(),
+      };
+    }
+  } catch {
+    // Fallback to zeroed counter
+  }
+  return {
+    totalVisits: 0,
+    uniqueVisitors: 0,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function writeVisitorStats(stats: VisitorStats): void {
+  try {
+    fs.writeFileSync(VISITOR_FILE, JSON.stringify(stats, null, 2), "utf-8");
+  } catch {
+    // Ignore disk write error in read-only environments
+  }
+}
+
+interface EditaisReport {
+  mode: "tjac_auto" | "cnae_completo" | "fluxo_continuo";
+  text: string;
+  sources: WebSourceResult[];
+  searchQueries: string[];
+  updatedAt: string;
+  customFilter?: string;
+}
+
+const EDITAIS_CACHE_FILE = path.resolve(__dirname, ".editais-cache.json");
+
+function readEditaisCache(): Record<string, EditaisReport> {
+  try {
+    if (fs.existsSync(EDITAIS_CACHE_FILE)) {
+      const raw = fs.readFileSync(EDITAIS_CACHE_FILE, "utf-8");
+      const parsed = JSON.parse(raw) as Record<string, EditaisReport>;
+      return parsed && typeof parsed === "object" ? parsed : {};
+    }
+  } catch {
+    // Ignore cache read error
+  }
+  return {};
+}
+
+function writeEditaisCache(cache: Record<string, EditaisReport>): void {
+  try {
+    fs.writeFileSync(EDITAIS_CACHE_FILE, JSON.stringify(cache, null, 2), "utf-8");
+  } catch {
+    // Ignore disk write error
+  }
+}
+
+const EDITAIS_SYSTEM_INSTRUCTION = `Você é um Especialista em Captação de Recursos para o Terceiro Setor, com foco exclusivo em segurança alimentar, assistência social e projetos comunitários (como ONGs de sopão, cozinhas solidárias e distribuição de refeições).
+
+Sua tarefa é buscar, filtrar e apresentar editais abertos, chamadas públicas, fundos de investimento social privado e programas de doação de alimentos/recursos financeiros aplicáveis a uma ONG de sopão no Brasil.
+
+PERFIL CNAE EXCLUSIVO DESTA ASSOCIAÇÃO (FILTRO OBRIGATÓRIO):
+- Entidade: Associação Recanto Social Bom Pastor (Projeto Sopão)
+- CNPJ: 33.314.701/0001-54 · Fundação: 26/02/2019 · Município: Plácido de Castro - AC
+- CNAE Principal: 94.30-8-00 — Atividades de associações de defesa de direitos sociais
+- CNAEs Secundários Compatíveis: 88.00-6-00 — Serviços de assistência social sem alojamento; 94.99-5-00 — Atividades associativas não especificadas anteriormente
+- Título: Utilidade Pública Estadual do Acre (Lei Ordinária nº 3.809/2021)
+- REGRA CNAE: Inclua APENAS editais, chamamentos e programas compatíveis com OSCs destes CNAEs (assistência social, segurança alimentar, defesa de direitos sociais, cozinhas comunitárias/sopão). Descarte editais exclusivos para outros CNAEs (saúde hospitalar, ensino superior, cultura pura, esporte profissional).
+
+REGRAS DE BUSCA E FILTRAGEM:
+1. Priorize editais com inscrições abertas no momento atual ou com previsão de abertura nos próximos 30 dias.
+2. Considere editais governamentais (municipais, estaduais, federais, leis de incentivo, emendas, TJAC penas pecuniárias) e privados (institutos, fundações empresariais, bancos, supermercados, programas de mesa brasil/combate à fome).
+3. Descarte editais que exijam CNPJ com mais de 5 anos caso não sejam a única opção, incluindo sempre oportunidades para organizações menores ou em estruturação.
+4. Verifique sempre a elegibilidade para projetos de assistência alimentar e combate à fome.
+
+FORMATO DE SAÍDA (OBRIGATÓRIO):
+Sempre que receber um comando para atualizar ou buscar editais, responda exatamente neste formato de lista estruturada:
+
+### 📌 [Nome do Edital ou Programa]
+* **Instituição Financiadora:** [Nome do órgão ou empresa]
+* **Tipo de Apoio:** [Recursos financeiros, doação de alimentos, equipamentos de cozinha, etc.]
+* **Valor / Benefício:** [Valor máximo por projeto ou descrição do benefício]
+* **Prazo de Inscrição:** [Data limite ou "Fluxo Contínuo"]
+* **Abrangência:** [Nacional, Estadual ou Municipal]
+* **Requisitos Básicos:** [Ex: CNPJ ativo, tempo mínimo de existência, estatuto, CNAE compatível]
+* **Resumo do Objeto:** [1 frase explicando o que o edital financia]
+* **Link / Onde Encontrar:** [Link direto ou termos exatos para busca no portal oficial]
+
+---
+Caso não encontre nenhum edital novo no momento, informe claramente e sugira 3 instituições que operam em fluxo contínuo (ex: Mesa Brasil Sesc, Instituto Assaí, Fundação Banco do Brasil) com o status atual delas.`;
+
 async function startServer() {
   const app = express();
   app.use(express.json({ limit: "15mb" }));
 
   app.get("/api/health", (_req: Request, res: Response) => {
     res.json({ ok: true });
+  });
+
+  app.get("/api/visitors", (_req: Request, res: Response) => {
+    res.json(readVisitorStats());
+  });
+
+  app.post("/api/visitors/hit", (req: Request, res: Response) => {
+    const body = req.body as { isNewVisitor?: boolean };
+    const current = readVisitorStats();
+    const updated: VisitorStats = {
+      totalVisits: current.totalVisits + 1,
+      uniqueVisitors: current.uniqueVisitors + (body?.isNewVisitor ? 1 : 0),
+      updatedAt: new Date().toISOString(),
+    };
+    writeVisitorStats(updated);
+    res.json(updated);
+  });
+
+  app.post("/api/visitors/reset", (_req: Request, res: Response) => {
+    const reset: VisitorStats = {
+      totalVisits: 0,
+      uniqueVisitors: 0,
+      updatedAt: new Date().toISOString(),
+    };
+    writeVisitorStats(reset);
+    res.json(reset);
+  });
+
+  app.get("/api/editais", (req: Request, res: Response) => {
+    const modeParam = typeof req.query.mode === "string" ? req.query.mode : "tjac_auto";
+    const cache = readEditaisCache();
+    res.json({
+      report: cache[modeParam] ?? null,
+      modesCached: Object.keys(cache),
+    });
+  });
+
+  // Coleta Automática de Editais (TJAC + Filtro Exclusivo por CNAE da Associação)
+  app.post("/api/gemini/editais", async (req: Request, res: Response) => {
+    try {
+      const body = req.body as {
+        mode?: "tjac_auto" | "cnae_completo" | "fluxo_continuo";
+        customFilter?: string;
+      };
+      const mode: "tjac_auto" | "cnae_completo" | "fluxo_continuo" =
+        body?.mode === "cnae_completo" || body?.mode === "fluxo_continuo"
+          ? body.mode
+          : "tjac_auto";
+      const customFilter = body?.customFilter?.trim() ?? "";
+      const todayIso = new Date().toISOString().slice(0, 10);
+
+      let searchPrompt = "";
+      if (mode === "tjac_auto") {
+        searchPrompt = `Data atual de referência: ${todayIso}.
+Execute uma coleta automática e atualizada no portal oficial do Tribunal de Justiça do Estado do Acre (tjac.jus.br) e órgãos do Acre buscando editais abertos ou recentes de destinação de penas pecuniárias, chamadas públicas do TJAC (incluindo Comarca de Plácido de Castro e comarcas do Acre), e programas estaduais (SEASDH Acre) compatíveis EXCLUSIVAMENTE com os CNAEs da Associação Recanto Social Bom Pastor (94.30-8-00, 88.00-6-00, 94.99-5-00) para o Projeto Sopão / Cozinha Solidária.${
+          customFilter ? ` Foco adicional solicitado: ${customFilter}.` : ""
+        } Responda obrigatoriamente seguindo o FORMATO DE SAÍDA estruturado.`;
+      } else if (mode === "fluxo_continuo") {
+        searchPrompt = `Data atual de referência: ${todayIso}.
+Busque e liste programas e fundos de apoio em FLUXO CONTÍNUO (ou chamadas recorrentes) de institutos privados, fundações, bancos, redes varejistas e Mesa Brasil Sesc aplicáveis EXCLUSIVAMENTE a ONGs de sopão / cozinhas solidárias com CNAE 94.30-8-00 ou 88.00-6-00 no Brasil e no Acre.${
+          customFilter ? ` Foco adicional solicitado: ${customFilter}.` : ""
+        } Responda obrigatoriamente seguindo o FORMATO DE SAÍDA estruturado.`;
+      } else {
+        searchPrompt = `Data atual de referência: ${todayIso}.
+Busque editais abertos, chamadas públicas governamentais (municipais, estaduais no Acre, federais MDS/Cozinha Solidária) e fundos privados no Brasil aplicáveis EXCLUSIVAMENTE aos CNAEs 94.30-8-00 (defesa de direitos sociais) e 88.00-6-00 (assistência social sem alojamento) para ONG de sopão e assistência alimentar em Plácido de Castro - AC.${
+          customFilter ? ` Foco adicional solicitado: ${customFilter}.` : ""
+        } Responda obrigatoriamente seguindo o FORMATO DE SAÍDA estruturado.`;
+      }
+
+      const ai = getAiClient();
+      const response = await ai.models.generateContent({
+        model: "gemini-4-hydrogen",
+        contents: searchPrompt,
+        config: {
+          systemInstruction: EDITAIS_SYSTEM_INSTRUCTION,
+          tools: [{ googleSearch: {} }],
+        },
+      });
+
+      const metadata = response.candidates?.[0]?.groundingMetadata as
+        | {
+            webSearchQueries?: string[];
+            groundingChunks?: Array<{
+              web?: { uri?: string; title?: string };
+            }>;
+          }
+        | undefined;
+
+      const sourcesMap = new Map<string, WebSourceResult>();
+      for (const chunk of metadata?.groundingChunks ?? []) {
+        if (chunk.web?.uri && !sourcesMap.has(chunk.web.uri)) {
+          sourcesMap.set(chunk.web.uri, {
+            title: chunk.web.title || chunk.web.uri,
+            uri: chunk.web.uri,
+          });
+        }
+      }
+
+      const report: EditaisReport = {
+        mode,
+        text: response.text ?? "",
+        sources: Array.from(sourcesMap.values()),
+        searchQueries: metadata?.webSearchQueries ?? [],
+        updatedAt: new Date().toISOString(),
+        ...(customFilter ? { customFilter } : {}),
+      };
+
+      const cache = readEditaisCache();
+      cache[mode] = report;
+      writeEditaisCache(cache);
+
+      res.json(report);
+    } catch (error) {
+      const formatted = formatGeminiError(error);
+      res.status(formatted.status).json({ error: formatted.message });
+    }
   });
 
   // 1. Google Maps Grounding (gemini-4-hydrogen + googleMaps)

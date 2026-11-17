@@ -13,13 +13,16 @@ import {
 } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
+  buildDonationReceiptWhatsappUrl,
   buildMonthlyDonorWhatsappUrl,
   buildPickupWhatsappUrl,
   buildPixPayload,
+  DonationRecord,
   PickupItemSelection,
   PIX_INFO,
   useDonationsStore,
 } from '../data/donationsStore';
+import { InstitutionalFooterStrip } from './InstitutionalFooterStrip';
 
 interface DonationModalProps {
   isOpen: boolean;
@@ -89,7 +92,7 @@ export function DonationModal({
   const [donorEmail, setDonorEmail] = useState('');
   const [donorPhone, setDonorPhone] = useState('');
   const [donorNotes, setDonorNotes] = useState('');
-  const [donationSuccessCode, setDonationSuccessCode] = useState<string | null>(null);
+  const [donationSuccessRecord, setDonationSuccessRecord] = useState<DonationRecord | null>(null);
 
   // Monthly donor form
   const [monthlyAmount, setMonthlyAmount] = useState<number>(50);
@@ -195,7 +198,7 @@ export function DonationModal({
         }).`,
     });
 
-    setDonationSuccessCode(record.referenceCode);
+    setDonationSuccessRecord(record);
     setDonorName('');
     setDonorEmail('');
     setDonorPhone('');
@@ -522,7 +525,7 @@ export function DonationModal({
                       : 'Checkout Seguro · Cartão ou Boleto'}
                   </h3>
 
-                  {donationSuccessCode ? (
+                  {donationSuccessRecord ? (
                     <div className="mt-5 space-y-4 rounded-lg border border-[#14532D]/30 bg-[#FBF9F5] p-5">
                       <div className="flex items-start gap-3">
                         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#14532D]" />
@@ -531,17 +534,30 @@ export function DonationModal({
                             Doação registrada no painel administrativo
                           </p>
                           <p className="mt-1 font-mono text-xs text-[#14532D]">
-                            Protocolo: {donationSuccessCode}
+                            Protocolo: {donationSuccessRecord.referenceCode}
                           </p>
                           <p className="mt-2 text-xs leading-relaxed text-[#44403C]">
                             O lançamento já aparece no controle de recebimentos e na contabilidade
-                            do painel administrativo.
+                            do painel administrativo. Envie o recibo oficial para o WhatsApp da
+                            associação para confirmação imediata.
                           </p>
                         </div>
                       </div>
+                      <a
+                        href={buildDonationReceiptWhatsappUrl(donationSuccessRecord)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-[#25D366] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#1EBE57]"
+                      >
+                        <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                        <span>
+                          Enviar Recibo pelo WhatsApp ({PIX_INFO.pixPhoneDisplay})
+                        </span>
+                        <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                      </a>
                       <button
                         type="button"
-                        onClick={() => setDonationSuccessCode(null)}
+                        onClick={() => setDonationSuccessRecord(null)}
                         className="inline-flex min-h-[40px] cursor-pointer items-center rounded-md border border-[#D6CEBE] bg-white px-4 py-2 text-xs font-medium text-[#1C1917]"
                       >
                         Registrar outra doação
@@ -1087,6 +1103,8 @@ export function DonationModal({
             </form>
           )}
         </div>
+
+        <InstitutionalFooterStrip variant="compact" />
       </div>
     </div>
   );

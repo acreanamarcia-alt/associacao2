@@ -1,6 +1,7 @@
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { OFFICIAL_ASSETS } from '../data/institutionalData';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   onOpenAdmin: () => void;
@@ -11,7 +12,7 @@ const NAV_LINKS = [
   { href: '#vagas', label: 'Vagas' },
   { href: '#doacoes', label: 'Doar' },
   { href: '#producao', label: 'Produção' },
-  { href: '#central-ia', label: 'Mapa & Estúdio' },
+  { href: '#central-ia', label: 'Editais & Mapa' },
   { href: '#historia', label: 'História' },
 ];
 
@@ -58,7 +59,11 @@ export function Header({ onOpenAdmin, onJumpToVolunteer }: HeaderProps) {
           </button>
         </nav>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="hidden md:block">
+            <PWAInstallButton variant="header" />
+          </div>
+
           <button
             type="button"
             onClick={onJumpToVolunteer}
@@ -102,13 +107,20 @@ export function Header({ onOpenAdmin, onJumpToVolunteer }: HeaderProps) {
             >
               Painel Administrativo
             </button>
+            <div className="pt-2">
+              <PWAInstallButton
+                variant="sidebar"
+                onAfterAction={() => setMobileMenuOpen(false)}
+              />
+            </div>
+
             <button
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
                 onJumpToVolunteer();
               }}
-              className="mt-2 inline-flex min-h-[44px] items-center justify-center rounded-md bg-[#14532D] px-4 py-2 text-sm font-semibold text-white"
+              className="mt-1 inline-flex min-h-[44px] items-center justify-center rounded-md bg-[#14532D] px-4 py-2 text-sm font-semibold text-white"
             >
               Quero ser voluntário
             </button>

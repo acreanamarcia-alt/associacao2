@@ -1,4 +1,4 @@
-import { FileText, Lock, MapPin, Phone } from 'lucide-react';
+import { ArrowUpRight, Calendar, FileText, Landmark, Lock, MapPin, Phone } from 'lucide-react';
 import { INSTITUTION_PROFILE, OFFICIAL_ASSETS } from '../data/institutionalData';
 
 interface FooterProps {
@@ -22,32 +22,50 @@ export function Footer({ onOpenEbook, onOpenAdmin }: FooterProps) {
               referrerPolicy="no-referrer"
               className="h-16 w-16 shrink-0 rounded-full border border-[#D6CEBE] bg-white object-cover"
             />
-            <div>
+            <div className="space-y-1.5">
               <p className="font-serif text-lg font-semibold text-[#1C1917]">
                 {INSTITUTION_PROFILE.legalName}
               </p>
-              <p className="mt-1 text-sm text-[#57534E]">
-                {INSTITUTION_PROFILE.popularName} · Utilidade Pública Estadual (
-                {INSTITUTION_PROFILE.stateLawShort})
+              <p className="text-sm text-[#57534E]">
+                Nome Popular: <strong className="text-[#1C1917]">{INSTITUTION_PROFILE.popularName}</strong>
               </p>
-              <p className="mt-2 font-mono text-xs tabular-nums text-[#78716C]">
-                CNPJ / PIX {INSTITUTION_PROFILE.cnpj} · PIX Tel +55 68 9958-7200
+              <p className="font-mono text-xs tabular-nums text-[#44403C]">
+                CNPJ / PIX: {INSTITUTION_PROFILE.cnpj} · PIX Tel: {INSTITUTION_PROFILE.pixPhoneDisplay}
+              </p>
+              <p className="flex items-center gap-1.5 text-xs text-[#57534E]">
+                <Calendar className="h-3.5 w-3.5 shrink-0 text-[#14532D]" aria-hidden="true" />
+                <span>Fundação: {INSTITUTION_PROFILE.foundedAt}</span>
+              </p>
+              <p className="flex items-start gap-1.5 text-xs text-[#57534E]">
+                <Landmark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#14532D]" aria-hidden="true" />
+                <span>
+                  Utilidade Pública Estadual: {INSTITUTION_PROFILE.stateLaw} (DOE 24/11/2021) ·{' '}
+                  {INSTITUTION_PROFILE.fomento} · {INSTITUTION_PROFILE.judiciary}
+                </span>
               </p>
             </div>
           </div>
 
           <div className="space-y-2.5 text-sm text-[#44403C] md:col-span-4">
             <p className="text-xs font-medium uppercase tracking-widest text-[#78716C]">
-              Sede e Contato Direto
+              Endereço da Sede &amp; Contato Direto
             </p>
             <p className="flex items-start gap-2">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#14532D]" aria-hidden="true" />
-              <span>
-                {INSTITUTION_PROFILE.address}, {INSTITUTION_PROFILE.cityState} (
-                {INSTITUTION_PROFILE.cep})
-              </span>
+              <span>{INSTITUTION_PROFILE.fullAddress}</span>
             </p>
-            <p className="flex items-center gap-2">
+            <div>
+              <a
+                href={INSTITUTION_PROFILE.googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#14532D] hover:underline underline-offset-4"
+              >
+                <span>Abrir localização da sede no Google Maps</span>
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            </div>
+            <p className="flex items-center gap-2 pt-1">
               <Phone className="h-4 w-4 shrink-0 text-[#14532D]" aria-hidden="true" />
               <a
                 href={whatsappUrl}
@@ -55,8 +73,11 @@ export function Footer({ onOpenEbook, onOpenAdmin }: FooterProps) {
                 rel="noopener noreferrer"
                 className="font-mono font-medium tabular-nums text-[#14532D] hover:underline underline-offset-4"
               >
-                {INSTITUTION_PROFILE.phoneDisplay} (WhatsApp)
+                {INSTITUTION_PROFILE.phoneDisplay} (WhatsApp / Coletas)
               </a>
+            </p>
+            <p className="text-xs text-[#57534E]">
+              Parcerias e Controle Social: {INSTITUTION_PROFILE.partners}
             </p>
           </div>
 
@@ -111,10 +132,10 @@ export function Footer({ onOpenEbook, onOpenAdmin }: FooterProps) {
 
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-[#E2DDD3] pt-6 text-xs text-[#78716C]">
           <p>
-            © {new Date().getFullYear()} {INSTITUTION_PROFILE.legalName}. Todos os registros
-            baseados na Edição Documental Oficial.
+            © {new Date().getFullYear()} {INSTITUTION_PROFILE.legalName} ({INSTITUTION_PROFILE.popularName}) · CNPJ{' '}
+            <span className="font-mono tabular-nums">{INSTITUTION_PROFILE.cnpj}</span>.
           </p>
-          <p>Bairro Olaria · Plácido de Castro, Acre</p>
+          <p>{INSTITUTION_PROFILE.fullAddress}</p>
         </div>
       </div>
     </footer>

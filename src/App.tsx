@@ -15,6 +15,9 @@ import { HistoryAndTransparency } from './components/HistoryAndTransparency';
 import { ProductionGallery } from './components/ProductionGallery';
 import { VolunteerHub } from './components/VolunteerHub';
 import type { DocumentaryFigure } from './data/institutionalData';
+import { useVisitorStats } from './data/visitorStore';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { WhatsAppButton } from './components/WhatsAppButton';
 
 export default function App() {
   const [viewMode, setViewMode] = useState<'portal' | 'admin'>('portal');
@@ -23,6 +26,8 @@ export default function App() {
   const [donateInitialTab, setDonateInitialTab] = useState<'pix' | 'monthly' | 'pickup'>('pix');
   const [requestedTab, setRequestedTab] = useState<IntelligenceTab | undefined>(undefined);
   const [requestedImage, setRequestedImage] = useState<StudioPresetImage | null>(null);
+
+  const { stats: visitorStats } = useVisitorStats({ trackHit: true });
 
   const handleJumpToVolunteer = () => {
     const el = document.getElementById('vagas');
@@ -53,7 +58,12 @@ export default function App() {
   }, []);
 
   if (viewMode === 'admin') {
-    return <AdminDashboard onExitAdmin={() => setViewMode('portal')} />;
+    return (
+      <>
+        <AdminDashboard onExitAdmin={() => setViewMode('portal')} />
+        <OfflineIndicator />
+      </>
+    );
   }
 
   return (
@@ -68,6 +78,8 @@ export default function App() {
           onOpenEbook={() => setEbookOpen(true)}
           onJumpToVolunteer={handleJumpToVolunteer}
           onOpenDonate={() => openDonateModal('pix')}
+          totalVisits={visitorStats.totalVisits}
+          uniqueVisitors={visitorStats.uniqueVisitors}
         />
         <VolunteerHub />
         <DonationSection
@@ -95,6 +107,9 @@ export default function App() {
         initialTab={donateInitialTab}
         onClose={() => setDonateModalOpen(false)}
       />
+
+      <WhatsAppButton variant="floating" />
+      <OfflineIndicator />
     </div>
   );
 }
