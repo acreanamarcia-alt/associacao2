@@ -1,6 +1,7 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { AdminUser, getRoleDefinition } from '../data/adminAuthClient';
 import { AssistedPersonRecord } from '../data/assistedPeopleStore';
 import {
   AccountingEntry,
@@ -16,6 +17,7 @@ import { VolunteerApplication } from '../data/volunteersStore';
 export interface DashboardPdfCategories {
   donations: boolean;
   volunteers: boolean;
+  users: boolean;
   revenues: boolean;
   donatedFoods: boolean;
   pickupsCount: boolean;
@@ -29,13 +31,127 @@ export interface DashboardPdfInput {
   products: DonationProductItem[];
   pickups: PickupScheduleRecord[];
   volunteerApplications: VolunteerApplication[];
+  systemUsers?: AdminUser[];
   assistedPeople: AssistedPersonRecord[];
   visitorStats: VisitorStats;
   categories: DashboardPdfCategories;
+  referenceMonth?: string; // 'all' ou 'YYYY-MM'
+  generatedBy?: string;
+}
+
+export interface MonthlyUsersVolunteersPdfInput {
+  systemUsers: AdminUser[];
+  volunteerApplications: VolunteerApplication[];
+  assistedPeople?: AssistedPersonRecord[];
+  donations?: DonationRecord[];
+  pickups?: PickupScheduleRecord[];
+  visitorStats: VisitorStats;
+  referenceMonth?: string; // 'all' ou 'YYYY-MM'
+  generatedBy?: string;
 }
 
 function formatBRL(value: number): string {
   return `R$ ${value.toFixed(2).replace('.', ',')}`;
+}
+
+function formatShortDateTime(iso: string | null | undefined): string {
+  if (!iso) return 'Nunca acessou';
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return iso;
+  return dt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+export function formatReferenceMonthLabel(referenceMonth?: string): string {
+  if (!referenceMonth || referenceMonth === 'all') {
+    return 'Todos os períodos acumulados';
+  }
+  const match = /^(\d{4})-(\d{2})$/.exec(referenceMonth);
+  if (!match) return referenceMonth;
+  const year = Number(match[1]);
+  const monthIdx = Number(match[2]) - 1;
+  const dt = new Date(year, monthIdx, 1);
+  if (Number.isNaN(dt.getTime())) return referenceMonth;
+  const formatted = dt.toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+  });
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+export function matchesReferenceMonth(
+  dateStr: string | null | undefined,
+  referenceMonth?: string
+): boolean {
+  if (!referenceMonth || referenceMonth === 'all') return true;
+  if (!dateStr) return false;
+  // ISO string YYYY-MM-DD...
+  if (dateStr.startsWith(referenceMonth)) return true;
+  // Brazilian date DD/MM/YYYY
+  const brMatch = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(dateStr);
+  if (brMatch) {
+    return `${brMatch[3]}-${brMatch[2]}` === referenceMonth;
+  }
+  const dt = new Date(dateStr);
+  if (Number.isNaN(dt.getTime())) return false;
+  const ym = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+  return ym === referenceMonth;
+}
+
+function drawInstitutionalPdfHeader(
+  doc: jsPDF,
+  titleSubtitle: string,
+  metaLine: string
+): void {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginX = 14;
+
+  doc.setFillColor(20, 83, 45); // #14532D
+  doc.rect(0, 0, pageWidth, 34, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13.5);
+  doc.text(INSTITUTION_PROFILE.legalName.toUpperCase(), marginX, 11.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.8);
+  doc.text(
+    `${INSTITUTION_PROFILE.popularName} · CNPJ ${INSTITUTION_PROFILE.cnpj} · CNAE ${INSTITUTION_PROFILE.cnaePrincipal}`,
+    marginX,
+    17.5
+  );
+  doc.text(titleSubtitle, marginX, 23.2);
+  doc.text(metaLine, marginX, 29);
+}
+
+function applyInstitutionalPdfFooters(doc: jsPDF): void {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginX = 14;
+  const totalPages = doc.getNumberOfPages();
+
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setDrawColor(226, 221, 211);
+    doc.line(marginX, pageHeight - 16, pageWidth - marginX, pageHeight - 16);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(87, 83, 78);
+    doc.text(
+      `${INSTITUTION_PROFILE.legalName} (${INSTITUTION_PROFILE.popularName}) · CNPJ ${INSTITUTION_PROFILE.cnpj} · ${INSTITUTION_PROFILE.stateLawShort}`,
+      marginX,
+      pageHeight - 11
+    );
+    doc.text(
+      `${INSTITUTION_PROFILE.fullAddress} · Tel: ${INSTITUTION_PROFILE.phoneDisplay}`,
+      marginX,
+      pageHeight - 7
+    );
+    doc.text(`Página ${i} de ${totalPages}`, pageWidth - marginX, pageHeight - 9, {
+      align: 'right',
+    });
+  }
 }
 
 /**
@@ -160,6 +276,259 @@ export async function exportReportElementToPdf(
   doc.save(filename);
 }
 
+/**
+ * Relatório Mensal de Impacto focado em Usuários do Sistema (RBAC) e Voluntários (jsPDF + jspdf-autotable).
+ */
+export function generateUsersAndVolunteersImpactPdf(
+  input: MonthlyUsersVolunteersPdfInput
+): void {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginX = 14;
+  const contentWidth = pageWidth - marginX * 2;
+  const generatedAt = new Date().toLocaleString('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+  const periodLabel = formatReferenceMonthLabel(input.referenceMonth);
+
+  const filteredUsers = input.systemUsers.filter((u) =>
+    matchesReferenceMonth(u.createdAt, input.referenceMonth)
+  );
+  const filteredVolunteers = input.volunteerApplications.filter((v) =>
+    matchesReferenceMonth(v.createdAt, input.referenceMonth)
+  );
+  const filteredAssisted = (input.assistedPeople ?? []).filter((a) =>
+    matchesReferenceMonth(a.createdAt, input.referenceMonth)
+  );
+  const filteredDonations = (input.donations ?? []).filter((d) =>
+    matchesReferenceMonth(d.createdAt, input.referenceMonth)
+  );
+  const filteredPickups = (input.pickups ?? []).filter((p) =>
+    matchesReferenceMonth(p.preferredDate || p.createdAt, input.referenceMonth)
+  );
+
+  drawInstitutionalPdfHeader(
+    doc,
+    `Relatório Mensal de Impacto: Usuários & Voluntários · Competência: ${periodLabel}`,
+    `Emitido em ${generatedAt}${input.generatedBy ? ` · Responsável: ${input.generatedBy}` : ''} · Visitantes: ${input.visitorStats.totalVisits.toLocaleString('pt-BR')}`
+  );
+
+  let currentY = 42;
+
+  const ensureSpace = (neededMm: number) => {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    if (currentY + neededMm > pageHeight - 24) {
+      doc.addPage();
+      currentY = 18;
+    }
+  };
+
+  const getLastTableFinalY = (): number => {
+    const withAuto = doc as unknown as { lastAutoTable?: { finalY?: number } };
+    return withAuto.lastAutoTable?.finalY ?? currentY + 10;
+  };
+
+  const drawSectionBanner = (tag: string, title: string, subtitle: string) => {
+    ensureSpace(24);
+    doc.setFillColor(244, 240, 232);
+    doc.roundedRect(marginX, currentY, contentWidth, 14, 1.5, 1.5, 'F');
+    doc.setDrawColor(20, 83, 45);
+    doc.line(marginX, currentY, marginX, currentY + 14);
+
+    doc.setTextColor(20, 83, 45);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(tag.toUpperCase(), marginX + 4, currentY + 5);
+
+    doc.setTextColor(28, 25, 23);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(title, marginX + 4, currentY + 10.5);
+
+    currentY += 17;
+    if (subtitle) {
+      doc.setTextColor(87, 83, 78);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.text(subtitle, marginX, currentY);
+      currentY += 5;
+    }
+  };
+
+  const activeUsersCount = input.systemUsers.filter((u) => u.status === 'ativo').length;
+  const adminCount = input.systemUsers.filter((u) => u.role === 'admin').length;
+  const gerenteCount = input.systemUsers.filter((u) => u.role === 'gerente').length;
+  const usuarioCount = input.systemUsers.filter((u) => u.role === 'usuario').length;
+  const totalPositions = VOLUNTEER_ROLES.reduce((sum, r) => sum + r.spotsTotal, 0);
+  const filledPositions = VOLUNTEER_ROLES.reduce((sum, r) => sum + r.spotsFilled, 0);
+
+  drawSectionBanner(
+    'Síntese Executiva',
+    `Indicadores de Impacto Social e Governança (${periodLabel})`,
+    'Consolidação de contas cadastradas por nível de acesso (RBAC) e engajamento voluntário no Projeto Sopão.'
+  );
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: marginX, right: marginX },
+    head: [['Indicador de Impacto / Governança', 'No Período Selecionado', 'Total Acumulado']],
+    body: [
+      [
+        'Contas de Usuários Cadastradas (RBAC)',
+        String(filteredUsers.length),
+        `${input.systemUsers.length} (${activeUsersCount} ativas)`,
+      ],
+      [
+        'Distribuição por Papéis (Admin / Gerente / Usuário)',
+        `${filteredUsers.filter((u) => u.role === 'admin').length} / ${filteredUsers.filter((u) => u.role === 'gerente').length} / ${filteredUsers.filter((u) => u.role === 'usuario').length}`,
+        `${adminCount} / ${gerenteCount} / ${usuarioCount}`,
+      ],
+      [
+        'Inscrições de Voluntários pelo Portal',
+        String(filteredVolunteers.length),
+        String(input.volunteerApplications.length),
+      ],
+      [
+        'Frentes Operacionais de Voluntariado (Vagas)',
+        `${VOLUNTEER_ROLES.length} frentes ativas`,
+        `${filledPositions}/${totalPositions} vagas preenchidas`,
+      ],
+      [
+        'Pessoas Assistidas Acompanhadas',
+        String(filteredAssisted.length),
+        String((input.assistedPeople ?? []).length),
+      ],
+      [
+        'Doações e Coletas Registradas',
+        `${filteredDonations.length} doações · ${filteredPickups.length} coletas`,
+        `${(input.donations ?? []).length} doações · ${(input.pickups ?? []).length} coletas`,
+      ],
+    ],
+    styles: { fontSize: 8.2, cellPadding: 2.4, textColor: [28, 25, 23] },
+    headStyles: { fillColor: [20, 83, 45], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [251, 249, 245] },
+  });
+
+  currentY = getLastTableFinalY() + 10;
+
+  // Seção 1: Usuários do Sistema (RBAC)
+  const usersToRender =
+    input.referenceMonth && input.referenceMonth !== 'all'
+      ? filteredUsers
+      : input.systemUsers;
+
+  drawSectionBanner(
+    'Seção 01 · Controle de Acesso',
+    'Usuários Cadastrados no Sistema (RBAC)',
+    `Exibindo ${usersToRender.length} conta(s) · Ativas no sistema: ${activeUsersCount} de ${input.systemUsers.length}`
+  );
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: marginX, right: marginX },
+    head: [['Nome Completo', 'E-mail', 'Nível (Role)', 'Status', 'Cadastro', 'Último Acesso']],
+    body:
+      usersToRender.length > 0
+        ? usersToRender.map((u) => [
+            u.nome || u.displayName,
+            u.email,
+            `${getRoleDefinition(u.role).shortLabel} (${u.role})`,
+            u.status === 'ativo' ? 'Ativo' : 'Inativo',
+            formatShortDateTime(u.createdAt),
+            formatShortDateTime(u.lastLoginAt),
+          ])
+        : [
+            [
+              '—',
+              '—',
+              `Nenhum novo usuário cadastrado na competência ${periodLabel}`,
+              '—',
+              '—',
+              '—',
+            ],
+          ],
+    styles: { fontSize: 7.8, cellPadding: 2.2, textColor: [28, 25, 23] },
+    headStyles: { fillColor: [20, 83, 45], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [251, 249, 245] },
+  });
+
+  currentY = getLastTableFinalY() + 10;
+
+  // Seção 2: Voluntários Inscritos
+  const volunteersToRender =
+    input.referenceMonth && input.referenceMonth !== 'all'
+      ? filteredVolunteers
+      : input.volunteerApplications;
+
+  drawSectionBanner(
+    'Seção 02 · Engajamento Comunitário',
+    'Voluntários Inscritos pelo Portal',
+    `Total na competência: ${volunteersToRender.length} inscrição(ões) · Todas as vagas são expressamente voluntárias sem remuneração.`
+  );
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: marginX, right: marginX },
+    head: [['Voluntário', 'E-mail', 'Telefone / WhatsApp', 'Vaga Escolhida', 'Disponibilidade', 'Data']],
+    body:
+      volunteersToRender.length > 0
+        ? volunteersToRender.map((v) => [
+            v.fullName,
+            v.email || '—',
+            v.phone,
+            v.roleTitle,
+            v.availability,
+            formatShortDateTime(v.createdAt),
+          ])
+        : [
+            [
+              '—',
+              '—',
+              '—',
+              `Nenhuma nova inscrição de voluntário registrada na competência ${periodLabel}`,
+              '—',
+              '—',
+            ],
+          ],
+    styles: { fontSize: 7.8, cellPadding: 2.2, textColor: [28, 25, 23] },
+    headStyles: { fillColor: [68, 64, 60], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [251, 249, 245] },
+  });
+
+  currentY = getLastTableFinalY() + 10;
+
+  // Seção 3: Quadro de Frentes de Voluntariado
+  drawSectionBanner(
+    'Seção 03 · Quadro de Frentes Ativas',
+    'Frentes e Turnos de Voluntariado do Projeto Sopão',
+    `Distribuição oficial das ${VOLUNTEER_ROLES.length} frentes operacionais (${filledPositions}/${totalPositions} vagas preenchidas).`
+  );
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: marginX, right: marginX },
+    head: [['Frente de Atuação', 'Categoria', 'Turno / Horário', 'Vagas Preenchidas']],
+    body: VOLUNTEER_ROLES.map((r) => [
+      r.title,
+      r.category,
+      `${r.shift} (${r.schedule})`,
+      `${r.spotsFilled}/${r.spotsTotal}`,
+    ]),
+    styles: { fontSize: 8, cellPadding: 2.2, textColor: [28, 25, 23] },
+    headStyles: { fillColor: [20, 83, 45], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [251, 249, 245] },
+  });
+
+  applyInstitutionalPdfFooters(doc);
+
+  const monthSlug =
+    input.referenceMonth && input.referenceMonth !== 'all'
+      ? input.referenceMonth
+      : new Date().toISOString().slice(0, 7);
+  doc.save(`relatorio-impacto-usuarios-voluntarios-${monthSlug}.pdf`);
+}
+
 export function generateDashboardPdfReport(input: DashboardPdfInput): void {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -169,31 +538,15 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
     dateStyle: 'short',
     timeStyle: 'short',
   });
+  const periodLabel = formatReferenceMonthLabel(input.referenceMonth);
 
-  // Header Banner
-  doc.setFillColor(20, 83, 45); // #14532D
-  doc.rect(0, 0, pageWidth, 32, 'F');
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text(INSTITUTION_PROFILE.legalName.toUpperCase(), marginX, 12);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(
-    `${INSTITUTION_PROFILE.popularName} · CNPJ ${INSTITUTION_PROFILE.cnpj} · CNAE ${INSTITUTION_PROFILE.cnaePrincipal}`,
-    marginX,
-    18
-  );
-  doc.text(INSTITUTION_PROFILE.fullAddress, marginX, 23.5);
-  doc.text(
-    `Relatório Gerencial do Dashboard · Emitido em ${generatedAt} · Visitantes do Portal: ${input.visitorStats.totalVisits} (${input.visitorStats.uniqueVisitors} únicos)`,
-    marginX,
-    29
+  drawInstitutionalPdfHeader(
+    doc,
+    `Relatório Gerencial do Dashboard · Competência: ${periodLabel}`,
+    `Emitido em ${generatedAt}${input.generatedBy ? ` · Responsável: ${input.generatedBy}` : ''} · Visitantes: ${input.visitorStats.totalVisits} (${input.visitorStats.uniqueVisitors} únicos)`
   );
 
-  let currentY = 40;
+  let currentY = 42;
 
   const ensureSpace = (neededMm: number) => {
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -239,16 +592,19 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
 
   // 1. RELATÓRIO DE DOAÇÕES
   if (input.categories.donations) {
-    const receivedCount = input.donations.filter((d) => d.status === 'Recebida').length;
-    const pendingCount = input.donations.filter(
+    const scopedDonations = input.donations.filter((d) =>
+      matchesReferenceMonth(d.createdAt, input.referenceMonth)
+    );
+    const receivedCount = scopedDonations.filter((d) => d.status === 'Recebida').length;
+    const pendingCount = scopedDonations.filter(
       (d) => d.status === 'Pendente' || d.status === 'Em Conferência'
     ).length;
-    const canceledCount = input.donations.filter((d) => d.status === 'Cancelada').length;
+    const canceledCount = scopedDonations.filter((d) => d.status === 'Cancelada').length;
 
     drawSectionTitle(
       `Categoria ${sectionNum++}`,
       'Relatório de Doações',
-      `Total de registros: ${input.donations.length} | Recebidas: ${receivedCount} | Pendentes/Conferência: ${pendingCount} | Canceladas: ${canceledCount}`
+      `Total no período: ${scopedDonations.length} | Recebidas: ${receivedCount} | Pendentes/Conferência: ${pendingCount} | Canceladas: ${canceledCount}`
     );
 
     autoTable(doc, {
@@ -256,8 +612,8 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
       margin: { left: marginX, right: marginX },
       head: [['Data', 'Protocolo', 'Colaborador', 'Canal', 'Valor / Itens', 'Status']],
       body:
-        input.donations.length > 0
-          ? input.donations.map((d) => [
+        scopedDonations.length > 0
+          ? scopedDonations.map((d) => [
               d.createdAt,
               d.referenceCode,
               d.donorName,
@@ -276,13 +632,16 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
 
   // 2. RELATÓRIO DE VOLUNTÁRIOS
   if (input.categories.volunteers) {
+    const scopedVolunteers = input.volunteerApplications.filter((v) =>
+      matchesReferenceMonth(v.createdAt, input.referenceMonth)
+    );
     const totalPositions = VOLUNTEER_ROLES.reduce((sum, r) => sum + r.spotsTotal, 0);
     const activeFilled = VOLUNTEER_ROLES.reduce((sum, r) => sum + r.spotsFilled, 0);
 
     drawSectionTitle(
       `Categoria ${sectionNum++}`,
       'Relatório de Voluntários',
-      `Frentes ativas: ${VOLUNTEER_ROLES.length} (${activeFilled}/${totalPositions} vagas preenchidas) | Inscrições pelo Portal: ${input.volunteerApplications.length}`
+      `Frentes ativas: ${VOLUNTEER_ROLES.length} (${activeFilled}/${totalPositions} vagas preenchidas) | Inscrições no período: ${scopedVolunteers.length}`
     );
 
     autoTable(doc, {
@@ -306,17 +665,18 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
     autoTable(doc, {
       startY: currentY,
       margin: { left: marginX, right: marginX },
-      head: [['Voluntário Inscrito', 'Telefone', 'Vaga Escolhida', 'Disponibilidade', 'Data']],
+      head: [['Voluntário Inscrito', 'E-mail', 'Telefone', 'Vaga Escolhida', 'Disponibilidade', 'Data']],
       body:
-        input.volunteerApplications.length > 0
-          ? input.volunteerApplications.map((v) => [
+        scopedVolunteers.length > 0
+          ? scopedVolunteers.map((v) => [
               v.fullName,
+              v.email || '—',
               v.phone,
               v.roleTitle,
               v.availability,
-              v.createdAt,
+              formatShortDateTime(v.createdAt),
             ])
-          : [['—', '—', 'Nenhuma nova inscrição de voluntário registrada neste dispositivo', '—', '—']],
+          : [['—', '—', '—', 'Nenhuma nova inscrição de voluntário registrada neste período', '—', '—']],
       styles: { fontSize: 8, cellPadding: 2.2, textColor: [28, 25, 23] },
       headStyles: { fillColor: [68, 64, 60], textColor: [255, 255, 255], fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [251, 249, 245] },
@@ -325,12 +685,52 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
     currentY = getLastTableFinalY() + 10;
   }
 
+  // 2B. RELATÓRIO DE USUÁRIOS DO SISTEMA (RBAC)
+  if (input.categories.users) {
+    const allUsers = input.systemUsers ?? [];
+    const scopedUsers = allUsers.filter((u) =>
+      matchesReferenceMonth(u.createdAt, input.referenceMonth)
+    );
+    const activeCount = scopedUsers.filter((u) => u.status === 'ativo').length;
+
+    drawSectionTitle(
+      `Categoria ${sectionNum++}`,
+      'Usuários Cadastrados e Níveis de Acesso (RBAC)',
+      `Contas no período: ${scopedUsers.length} (Ativas: ${activeCount}) | Total acumulado na base: ${allUsers.length}`
+    );
+
+    autoTable(doc, {
+      startY: currentY,
+      margin: { left: marginX, right: marginX },
+      head: [['Nome Completo', 'E-mail', 'Nível (Role)', 'Status', 'Cadastro', 'Último Acesso']],
+      body:
+        scopedUsers.length > 0
+          ? scopedUsers.map((u) => [
+              u.nome || u.displayName,
+              u.email,
+              `${getRoleDefinition(u.role).shortLabel} (${u.role})`,
+              u.status === 'ativo' ? 'Ativo' : 'Inativo',
+              formatShortDateTime(u.createdAt),
+              formatShortDateTime(u.lastLoginAt),
+            ])
+          : [['—', '—', '—', 'Nenhum usuário cadastrado neste período', '—', '—']],
+      styles: { fontSize: 7.8, cellPadding: 2.2, textColor: [28, 25, 23] },
+      headStyles: { fillColor: [20, 83, 45], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [251, 249, 245] },
+    });
+
+    currentY = getLastTableFinalY() + 10;
+  }
+
   // 3. RELATÓRIOS DE RECEITAS DE DOAÇÕES
   if (input.categories.revenues) {
-    const totalEntradas = input.accountingEntries
+    const scopedAcc = input.accountingEntries.filter((a) =>
+      matchesReferenceMonth(a.date, input.referenceMonth)
+    );
+    const totalEntradas = scopedAcc
       .filter((a) => a.kind === 'Entrada')
       .reduce((acc, a) => acc + a.amountBRL, 0);
-    const totalSaidas = input.accountingEntries
+    const totalSaidas = scopedAcc
       .filter((a) => a.kind === 'Saída')
       .reduce((acc, a) => acc + a.amountBRL, 0);
     const saldoLiquido = totalEntradas - totalSaidas;
@@ -349,8 +749,8 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
       margin: { left: marginX, right: marginX },
       head: [['Data', 'Doc / Ref', 'Tipo', 'Categoria', 'Descrição', 'Valor']],
       body:
-        input.accountingEntries.length > 0
-          ? input.accountingEntries.map((a) => [
+        scopedAcc.length > 0
+          ? scopedAcc.map((a) => [
               a.date,
               a.referenceCode,
               a.kind,
@@ -400,16 +800,19 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
 
   // 5. NÚMERO DE COLETAS FEITAS
   if (input.categories.pickupsCount) {
-    const donePickups = input.pickups.filter((p) => p.status === 'Coletada').length;
-    const scheduledOrRoute = input.pickups.filter(
+    const scopedPickups = input.pickups.filter((p) =>
+      matchesReferenceMonth(p.preferredDate || p.createdAt, input.referenceMonth)
+    );
+    const donePickups = scopedPickups.filter((p) => p.status === 'Coletada').length;
+    const scheduledOrRoute = scopedPickups.filter(
       (p) => p.status === 'Agendada' || p.status === 'Em Rota'
     ).length;
-    const canceledPickups = input.pickups.filter((p) => p.status === 'Cancelada').length;
+    const canceledPickups = scopedPickups.filter((p) => p.status === 'Cancelada').length;
 
     drawSectionTitle(
       `Categoria ${sectionNum++}`,
       'Relatório de Número de Coletas Feitas',
-      `Coletas Feitas (Concluídas): ${donePickups} | Agendadas / Em Rota: ${scheduledOrRoute} | Canceladas: ${canceledPickups} | Total Geral: ${input.pickups.length}`
+      `Coletas Feitas (Concluídas): ${donePickups} | Agendadas / Em Rota: ${scheduledOrRoute} | Canceladas: ${canceledPickups} | Total no Período: ${scopedPickups.length}`
     );
 
     autoTable(doc, {
@@ -417,8 +820,8 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
       margin: { left: marginX, right: marginX },
       head: [['Data Preferencial', 'Turno', 'Colaborador', 'Endereço', 'Itens', 'Status']],
       body:
-        input.pickups.length > 0
-          ? input.pickups.map((p) => [
+        scopedPickups.length > 0
+          ? scopedPickups.map((p) => [
               p.preferredDate,
               p.preferredShift,
               p.collaboratorName,
@@ -439,12 +842,15 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
 
   // 6. PESSOAS ASSISTIDAS PELA ASSOCIAÇÃO
   if (input.categories.assistedPeople) {
-    const activeAssisted = input.assistedPeople.filter((p) => p.status === 'Ativa').length;
+    const scopedAssisted = input.assistedPeople.filter((p) =>
+      matchesReferenceMonth(p.createdAt, input.referenceMonth)
+    );
+    const activeAssisted = scopedAssisted.filter((p) => p.status === 'Ativa').length;
 
     drawSectionTitle(
       `Categoria ${sectionNum++}`,
       'Cadastro de Pessoas Assistidas pela Associação',
-      `Total cadastrado: ${input.assistedPeople.length} | Ativas no programa: ${activeAssisted}`
+      `Total no período: ${scopedAssisted.length} | Ativas no programa: ${activeAssisted}`
     );
 
     autoTable(doc, {
@@ -452,8 +858,8 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
       margin: { left: marginX, right: marginX },
       head: [['Nome Completo', 'E-mail', 'Telefone', 'Bairro / Família', 'Status', 'Cadastro']],
       body:
-        input.assistedPeople.length > 0
-          ? input.assistedPeople.map((p) => [
+        scopedAssisted.length > 0
+          ? scopedAssisted.map((p) => [
               p.fullName,
               p.email,
               p.phone,
@@ -461,39 +867,18 @@ export function generateDashboardPdfReport(input: DashboardPdfInput): void {
               p.status,
               p.createdAt,
             ])
-          : [['—', '—', '—', 'Nenhuma pessoa assistida cadastrada até o momento', '—', '—']],
+          : [['—', '—', '—', 'Nenhuma pessoa assistida cadastrada neste período', '—', '—']],
       styles: { fontSize: 8, cellPadding: 2.2, textColor: [28, 25, 23] },
       headStyles: { fillColor: [20, 83, 45], textColor: [255, 255, 255], fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [251, 249, 245] },
     });
   }
 
-  // Institutional Footer on every page
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    const pageHeight = doc.internal.pageSize.getHeight();
-    doc.setDrawColor(226, 221, 211);
-    doc.line(marginX, pageHeight - 16, pageWidth - marginX, pageHeight - 16);
+  applyInstitutionalPdfFooters(doc);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(87, 83, 78);
-    doc.text(
-      `${INSTITUTION_PROFILE.legalName} (${INSTITUTION_PROFILE.popularName}) · CNPJ ${INSTITUTION_PROFILE.cnpj} · ${INSTITUTION_PROFILE.stateLawShort}`,
-      marginX,
-      pageHeight - 11
-    );
-    doc.text(
-      `${INSTITUTION_PROFILE.fullAddress} · Tel: ${INSTITUTION_PROFILE.phoneDisplay}`,
-      marginX,
-      pageHeight - 7
-    );
-    doc.text(`Página ${i} de ${totalPages}`, pageWidth - marginX, pageHeight - 9, {
-      align: 'right',
-    });
-  }
-
-  const filename = `relatorio-dashboard-bom-pastor-${new Date().toISOString().slice(0, 10)}.pdf`;
-  doc.save(filename);
+  const suffix =
+    input.referenceMonth && input.referenceMonth !== 'all'
+      ? input.referenceMonth
+      : new Date().toISOString().slice(0, 10);
+  doc.save(`relatorio-dashboard-bom-pastor-${suffix}.pdf`);
 }

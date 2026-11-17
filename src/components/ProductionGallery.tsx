@@ -11,6 +11,7 @@ const GALLERY_FILTERS: Array<'Todos os registros' | DocumentaryFigure['category'
   'Sopão & Refeições',
   'Pães & Bolos',
   'Porcionamento & Entrega',
+  'Ações Comunitárias & Cestas',
 ];
 
 export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {

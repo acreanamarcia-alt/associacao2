@@ -25,7 +25,11 @@ export interface DocumentaryFigure {
   caption: string;
   imageSrc: string;
   aspectClass: string;
-  category: 'Sopão & Refeições' | 'Pães & Bolos' | 'Porcionamento & Entrega';
+  category:
+    | 'Sopão & Refeições'
+    | 'Pães & Bolos'
+    | 'Porcionamento & Entrega'
+    | 'Ações Comunitárias & Cestas';
   accessionId: string;
   chapterRef: string;
   destination: string;
@@ -361,6 +365,71 @@ export const DOCUMENTARY_FIGURES: DocumentaryFigure[] = [
     accessionId: 'ARSBP-CAP6-08',
     chapterRef: 'Capítulo 6 · Página 11',
     destination: 'Entrega direta em zonas urbana e rural',
+  },
+  {
+    id: 'fig-9',
+    number: 'Fig. 9',
+    title: 'Mesa Comunitária e Refeições Prontas',
+    caption:
+      'Panelas com refeições quentes, farofa temperada e porções preparadas pelos voluntários para acolhimento alimentar imediato.',
+    imageSrc: '/assets/aistudio/atividdes1_23e72dfd.jpg',
+    aspectClass: 'aspect-[3/4]',
+    category: 'Ações Comunitárias & Cestas',
+    accessionId: 'ARSBP-ACERVO-09',
+    chapterRef: 'Acervo Ativo · Cozinha Comunitária',
+    destination: 'Refeições servidas e porcionadas às famílias',
+  },
+  {
+    id: 'fig-10',
+    number: 'Fig. 10',
+    title: 'Mutirão de Atendimento na Sede',
+    caption:
+      'Famílias e idosos acolhidos na sede comunitária durante distribuição organizada de cestas básicas, pães e vestuário.',
+    imageSrc: '/assets/aistudio/doacao4_f540b025.jpg',
+    aspectClass: 'aspect-[4/3]',
+    category: 'Ações Comunitárias & Cestas',
+    accessionId: 'ARSBP-ACERVO-10',
+    chapterRef: 'Acervo Ativo · Atendimento Presencial',
+    destination: 'Entrega gratuita de cestas e roupas',
+  },
+  {
+    id: 'fig-11',
+    number: 'Fig. 11',
+    title: 'Bancada de Cestas Básicas e Pães',
+    caption:
+      'Cestas básicas completas, pães caseiros embalados e doações organizadas sobre as mesas de triagem do Projeto Sopão.',
+    imageSrc: '/assets/aistudio/doacao3_ad994026.jpg',
+    aspectClass: 'aspect-[4/3]',
+    category: 'Ações Comunitárias & Cestas',
+    accessionId: 'ARSBP-ACERVO-11',
+    chapterRef: 'Acervo Ativo · Triagem Solidária',
+    destination: 'Cestas básicas e pães para famílias cadastradas',
+  },
+  {
+    id: 'fig-12',
+    number: 'Fig. 12',
+    title: 'Festa Especial para as Crianças (Ramal da Cajazeira)',
+    caption:
+      'Ação comunitária no Ramal da Cajazeira (Bujari - AC) com bolo confeitado, brinquedos e confraternização das famílias.',
+    imageSrc: '/assets/aistudio/festa_dia_das_criancas_7c6fbe12.jpg',
+    aspectClass: 'aspect-[3/4]',
+    category: 'Ações Comunitárias & Cestas',
+    accessionId: 'ARSBP-ACERVO-12',
+    chapterRef: 'Acervo Ativo · Outubro 2026',
+    destination: 'Acolhimento infantil e integração comunitária',
+  },
+  {
+    id: 'fig-13',
+    number: 'Fig. 13',
+    title: 'Homenagem à Equipe do Ramal da Cajazeira',
+    caption:
+      'Registro de gratidão junto à Irmã Leda e colaboradores comunitários durante a entrega de bolo, brinquedos e lanches.',
+    imageSrc: '/assets/aistudio/festa_dia_das_criancas2_14b01868.jpg',
+    aspectClass: 'aspect-[3/4]',
+    category: 'Ações Comunitárias & Cestas',
+    accessionId: 'ARSBP-ACERVO-13',
+    chapterRef: 'Acervo Ativo · Extensão Rural',
+    destination: 'Atendimento comunitário em ramais do Acre',
   },
 ];
 

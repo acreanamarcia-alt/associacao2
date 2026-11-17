@@ -146,6 +146,9 @@ export function VolunteerHub() {
               frentes reais de trabalho voluntário na cozinha solidária, panificação, montagem de
               kits, rotas de entrega e governança documental.
             </p>
+            <p className="mt-3 inline-block rounded border border-[#DC2626]/30 bg-[#FEF2F2] px-3 py-1.5 text-[11px] font-semibold tracking-tight text-[#DC2626]">
+              Aviso importante: todas as vagas são expressamente voluntári(a)s sem qualquer tipo remuneração.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
@@ -445,9 +448,14 @@ export function VolunteerHub() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmitApplication} className="space-y-4">
-                    <h4 className="font-serif text-lg font-semibold text-[#1C1917]">
-                      Inscrever-se nesta vaga
-                    </h4>
+                    <div>
+                      <h4 className="font-serif text-lg font-semibold text-[#1C1917]">
+                        Inscrever-se nesta vaga
+                      </h4>
+                      <p className="mt-2 rounded border border-[#DC2626]/35 bg-[#FEF2F2] px-3 py-2 text-[11px] font-semibold leading-snug text-[#DC2626]">
+                        Todas as vagas são expressamente voluntári(a)s sem qualquer tipo remuneração.
+                      </p>
+                    </div>
 
                     <div>
                       <label

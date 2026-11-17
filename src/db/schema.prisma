@@ -1,0 +1,39 @@
+// Modelagem relacional de referência (Prisma / PostgreSQL) para o módulo
+// de Autenticação, Usuários e Controle de Acesso Baseado em Papéis (RBAC).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin    // Acesso total ao sistema, gerenciamento de usuários e configurações
+  gerente  // Acesso a relatórios, aprovação de conteúdos/doações e dados operacionais
+  usuario  // Acesso padrão limitado à própria conta e recursos públicos
+}
+
+enum UserStatus {
+  ativo
+  inativo
+}
+
+model User {
+  id                String     @id @default(cuid())
+  nome              String
+  email             String     @unique
+  passwordHash      String     @map("password_hash")
+  role              UserRole   @default(usuario)
+  status            UserStatus @default(ativo)
+  isDefaultPassword Boolean    @default(false) @map("is_default_password")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  lastLoginAt       DateTime?  @map("last_login_at")
+
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}

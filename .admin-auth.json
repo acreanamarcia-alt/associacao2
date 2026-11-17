@@ -1,0 +1,17 @@
+{
+  "sessionSecret": "d633e5c1d9d1b34f2561429ee4d4cb415ecf0487f12d62fa3e8a130cc87773a5",
+  "users": [
+    {
+      "id": "usr-admin-root",
+      "nome": "Diretoria · Projeto Sopão",
+      "email": "admin@bompastor.org.br",
+      "role": "admin",
+      "status": "ativo",
+      "passwordHash": "fd7d95a12c8be1f53c88b4690525574e:a698887c4ab235cf10f71f73be3d409ed33663fd8d9fc6ee65bc9ef3866727ba43f565661dedcc50fd5309a8a31928c16a89cc6670d3df50a0f332b29a5ab54c",
+      "isDefaultPassword": true,
+      "createdAt": "2026-11-17T14:43:37.931Z",
+      "updatedAt": "2026-11-17T14:43:37.931Z",
+      "lastLoginAt": "2026-11-17T15:40:19.576Z"
+    }
+  ]
+}

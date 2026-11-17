@@ -9,21 +9,25 @@ import {
   Eye,
   FileDown,
   HeartHandshake,
+  KeyRound,
   Landmark,
   LayoutDashboard,
   Loader2,
+  LogOut,
   MapPin,
   MessageCircle,
   Package,
   Plus,
   RotateCcw,
   Search,
+  ShieldCheck,
   Trash2,
   Truck,
+  UserCog,
   Users,
   Wallet,
 } from 'lucide-react';
-import { FormEvent, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AssistedPersonStatus,
   useAssistedPeopleStore,
@@ -52,20 +56,35 @@ import {
   OFFICIAL_ASSETS,
   VOLUNTEER_ROLES,
 } from '../data/institutionalData';
+import {
+  AdminUser,
+  fetchAdminUsers,
+  getRoleDefinition,
+  hasTabAccess,
+  updateAdminCredentials,
+} from '../data/adminAuthClient';
 import { useVisitorStats } from '../data/visitorStore';
 import { useVolunteersStore } from '../data/volunteersStore';
 import {
   DashboardPdfCategories,
   exportReportElementToPdf,
+  formatReferenceMonthLabel,
   generateDashboardPdfReport,
+  generateUsersAndVolunteersImpactPdf,
+  matchesReferenceMonth,
 } from '../utils/dashboardPdfReport';
+import { AdminAccessControlPanel } from './AdminAccessControlPanel';
 import { DashboardReportPrintable } from './DashboardReportPrintable';
 import { EditaisCollectorPanel } from './EditaisCollectorPanel';
 import { InstitutionalFooterStrip } from './InstitutionalFooterStrip';
+import { MonthlyDonationsChart } from './MonthlyDonationsChart';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface AdminDashboardProps {
   onExitAdmin: () => void;
+  adminUser?: AdminUser | null;
+  onLogout?: () => void;
+  onAdminUpdated?: (user: AdminUser) => void;
 }
 
 type AdminTab =
@@ -78,9 +97,15 @@ type AdminTab =
   | 'assisted'
   | 'reports'
   | 'editais'
+  | 'users'
   | 'corporate';
 
-export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
+export function AdminDashboard({
+  onExitAdmin,
+  adminUser,
+  onLogout,
+  onAdminUpdated,
+}: AdminDashboardProps) {
   const {
     products,
     donations,
@@ -113,11 +138,29 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
   const { applications: volunteerApplications, removeApplication } = useVolunteersStore();
   const { stats: visitorStats } = useVisitorStats();
 
+  const roleDef = getRoleDefinition(adminUser?.role);
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const safeActiveTab: AdminTab = hasTabAccess(adminUser?.role, activeTab)
+    ? activeTab
+    : 'overview';
   const [confirmResetFinancial, setConfirmResetFinancial] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Todas' | DonationStatus>('Todas');
   const [typeFilter, setTypeFilter] = useState<'Todos' | DonationType>('Todos');
+
+  // Security & Credentials state
+  const [secCurrentPassword, setSecCurrentPassword] = useState('');
+  const [secNewEmail, setSecNewEmail] = useState(
+    adminUser?.email ?? 'admin@bompastor.org.br'
+  );
+  const [secDisplayName, setSecDisplayName] = useState(
+    adminUser?.nome ?? adminUser?.displayName ?? 'Diretoria · Projeto Sopão'
+  );
+  const [secNewPassword, setSecNewPassword] = useState('');
+  const [secConfirmPassword, setSecConfirmPassword] = useState('');
+  const [secSaving, setSecSaving] = useState(false);
+  const [secError, setSecError] = useState('');
+  const [secSuccess, setSecSuccess] = useState('');
 
   // Assisted people state
   const [assistedSearch, setAssistedSearch] = useState('');
@@ -132,12 +175,15 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
   const [assistNotes, setAssistNotes] = useState('');
   const [assistError, setAssistError] = useState('');
 
-  // PDF Report category selection & html2canvas refs
+  // PDF Report category selection, monthly scope & html2canvas refs
   const reportPreviewRef = useRef<HTMLDivElement>(null);
   const reportOffscreenRef = useRef<HTMLDivElement>(null);
+  const [systemUsers, setSystemUsers] = useState<AdminUser[]>([]);
+  const [reportMonth, setReportMonth] = useState<string>('all');
   const [pdfCategories, setPdfCategories] = useState<DashboardPdfCategories>({
     donations: true,
     volunteers: true,
+    users: true,
     revenues: true,
     donatedFoods: true,
     pickupsCount: true,
@@ -145,6 +191,23 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
   });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfNotice, setPdfNotice] = useState('');
+
+  useEffect(() => {
+    if (!adminUser) return;
+    let cancelled = false;
+    fetchAdminUsers({ page: 1, pageSize: 100 })
+      .then((res) => {
+        if (!cancelled) {
+          setSystemUsers(res.users);
+        }
+      })
+      .catch(() => {
+        // Ignora silenciosamente caso usuário não tenha permissão de leitura
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [adminUser, safeActiveTab]);
 
   // Monthly Donors filters & form
   const [monthlyFilter, setMonthlyFilter] = useState<'Todos' | MonthlyDonorStatus>('Todos');
@@ -349,6 +412,8 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
       return;
     }
 
+    const generatedBy = adminUser?.nome || adminUser?.displayName;
+
     if (mode === 'autotable') {
       setPdfNotice('');
       generateDashboardPdfReport({
@@ -358,16 +423,21 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
         products,
         pickups,
         volunteerApplications,
+        systemUsers,
         assistedPeople,
         visitorStats,
         categories: cats,
+        referenceMonth: reportMonth,
+        generatedBy,
       });
-      setPdfNotice('Relatório PDF vetorial gerado e baixado com sucesso!');
+      setPdfNotice(
+        `Relatório PDF vetorial (${formatReferenceMonthLabel(reportMonth)}) gerado e baixado com sucesso!`
+      );
       return;
     }
 
     const targetEl =
-      activeTab === 'reports' ? reportPreviewRef.current : reportOffscreenRef.current;
+      safeActiveTab === 'reports' ? reportPreviewRef.current : reportOffscreenRef.current;
 
     if (!targetEl) {
       generateDashboardPdfReport({
@@ -377,9 +447,12 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
         products,
         pickups,
         volunteerApplications,
+        systemUsers,
         assistedPeople,
         visitorStats,
         categories: cats,
+        referenceMonth: reportMonth,
+        generatedBy,
       });
       setPdfNotice('Relatório PDF gerado e baixado com sucesso!');
       return;
@@ -388,15 +461,59 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
     setIsGeneratingPdf(true);
     setPdfNotice('');
     try {
+      const monthSuffix =
+        reportMonth && reportMonth !== 'all'
+          ? reportMonth
+          : new Date().toISOString().slice(0, 10);
       await exportReportElementToPdf(targetEl, {
-        filename: `relatorio-dashboard-bom-pastor-${new Date().toISOString().slice(0, 10)}.pdf`,
+        filename: `relatorio-dashboard-bom-pastor-${monthSuffix}.pdf`,
       });
-      setPdfNotice('Relatório PDF (jsPDF + html2canvas) gerado e baixado com sucesso!');
+      setPdfNotice(
+        `Relatório PDF (${formatReferenceMonthLabel(reportMonth)}) gerado e baixado com sucesso!`
+      );
     } catch (err) {
       setPdfNotice(
         `Não foi possível capturar a pré-visualização visual (${
           err instanceof Error ? err.message : 'erro inesperado'
         }). Tente o botão PDF Vetorial.`
+      );
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleDownloadUsersAndVolunteersPdf = async () => {
+    setIsGeneratingPdf(true);
+    setPdfNotice('');
+    try {
+      let latestUsers = systemUsers;
+      try {
+        const res = await fetchAdminUsers({ page: 1, pageSize: 100 });
+        latestUsers = res.users;
+        setSystemUsers(res.users);
+      } catch {
+        // Fallback para lista em memória
+      }
+
+      generateUsersAndVolunteersImpactPdf({
+        systemUsers: latestUsers,
+        volunteerApplications,
+        assistedPeople,
+        donations,
+        pickups,
+        visitorStats,
+        referenceMonth: reportMonth,
+        generatedBy: adminUser?.nome || adminUser?.displayName,
+      });
+
+      setPdfNotice(
+        `Relatório Mensal de Impacto: Usuários & Voluntários (${formatReferenceMonthLabel(reportMonth)}) exportado em PDF!`
+      );
+    } catch (err) {
+      setPdfNotice(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao exportar relatório PDF de usuários e voluntários.'
       );
     } finally {
       setIsGeneratingPdf(false);
@@ -463,11 +580,11 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
   };
 
   const handleExportCsv = () => {
-    if (activeTab === 'accounting') {
+    if (safeActiveTab === 'accounting') {
       handleExportAccountingCsv();
       return;
     }
-    if (activeTab === 'assisted') {
+    if (safeActiveTab === 'assisted') {
       handleExportAssistedCsv();
       return;
     }
@@ -605,6 +722,50 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
     setNewProductName('');
   };
 
+  const handleUpdateCredentials = async (e: FormEvent) => {
+    e.preventDefault();
+    setSecError('');
+    setSecSuccess('');
+
+    if (!secCurrentPassword) {
+      setSecError('Informe sua senha atual para autorizar a alteração.');
+      return;
+    }
+    if (secNewPassword && secNewPassword.length < 6) {
+      setSecError('A nova senha deve conter no mínimo 6 caracteres.');
+      return;
+    }
+    if (secNewPassword !== secConfirmPassword) {
+      setSecError('A confirmação da nova senha não confere.');
+      return;
+    }
+
+    setSecSaving(true);
+    try {
+      const updated = await updateAdminCredentials({
+        currentPassword: secCurrentPassword,
+        newEmail: secNewEmail,
+        newPassword: secNewPassword || undefined,
+        displayName: secDisplayName,
+      });
+      onAdminUpdated?.(updated);
+      setSecCurrentPassword('');
+      setSecNewPassword('');
+      setSecConfirmPassword('');
+      setSecSuccess(
+        'Credenciais administrativas atualizadas e salvas com segurança.'
+      );
+    } catch (err) {
+      setSecError(
+        err instanceof Error
+          ? err.message
+          : 'Erro ao atualizar credenciais administrativas.'
+      );
+    } finally {
+      setSecSaving(false);
+    }
+  };
+
   const tabTitle: Record<AdminTab, string> = {
     overview: 'Dashboard & Contabilidade Geral',
     receipts: 'Controle de Recebimento de Doações',
@@ -615,6 +776,7 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
     assisted: 'Cadastro de Pessoas Assistidas',
     reports: 'Relatórios em PDF do Dashboard',
     editais: 'Coleta de Editais (CNAE & TJAC)',
+    users: 'Usuários & Níveis de Acesso (RBAC)',
     corporate: 'Dados Corporativos & Localização da Sede',
   };
 
@@ -634,170 +796,207 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
               <p className="font-serif text-sm font-bold leading-snug text-[#14532D]">
                 Associação Recanto Social Bom Pastor
               </p>
-              <p className="mt-0.5 text-[11px] text-slate-500">Painel Administrativo</p>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                Painel · {roleDef.shortLabel}
+              </p>
             </div>
           </div>
 
           <nav aria-label="Menu do painel administrativo" className="space-y-1 p-3">
-            <button
-              type="button"
-              onClick={() => setActiveTab('overview')}
-              className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
-                activeTab === 'overview'
-                  ? 'bg-[#14532D] text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <LayoutDashboard className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Dashboard Geral</span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'overview') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('overview')}
+                className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'overview'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <LayoutDashboard className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Dashboard Geral</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('accounting')}
-              className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
-                activeTab === 'accounting'
-                  ? 'bg-[#14532D] text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <BookMarked className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Contabilidade</span>
-              </span>
-              <span className="font-mono text-[11px] tabular-nums opacity-80">
-                {accountingEntries.length}
-              </span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'accounting') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('accounting')}
+                className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'accounting'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <BookMarked className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Contabilidade</span>
+                </span>
+                <span className="font-mono text-[11px] tabular-nums opacity-80">
+                  {accountingEntries.length}
+                </span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('monthly-donors')}
-              className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
-                activeTab === 'monthly-donors'
-                  ? 'bg-[#14532D] text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <CalendarClock className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Doadores Mensais</span>
-              </span>
-              <span className="font-mono text-[11px] tabular-nums opacity-80">
-                {monthlyDonors.length}
-              </span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'monthly-donors') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('monthly-donors')}
+                className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'monthly-donors'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <CalendarClock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Doadores Mensais</span>
+                </span>
+                <span className="font-mono text-[11px] tabular-nums opacity-80">
+                  {monthlyDonors.length}
+                </span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('receipts')}
-              className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
-                activeTab === 'receipts'
-                  ? 'bg-[#14532D] text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <Wallet className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Recebimento de Doações</span>
-              </span>
-              <span className="font-mono text-[11px] tabular-nums opacity-80">
-                {donations.length}
-              </span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'receipts') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('receipts')}
+                className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'receipts'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Wallet className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Recebimento de Doações</span>
+                </span>
+                <span className="font-mono text-[11px] tabular-nums opacity-80">
+                  {donations.length}
+                </span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('pickups')}
-              className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
-                activeTab === 'pickups'
-                  ? 'bg-[#14532D] text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <Truck className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Agendamento de Coleta</span>
-              </span>
-              <span className="font-mono text-[11px] tabular-nums opacity-80">
-                {pickups.length}
-              </span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'pickups') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('pickups')}
+                className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'pickups'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Truck className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Agendamento de Coleta</span>
+                </span>
+                <span className="font-mono text-[11px] tabular-nums opacity-80">
+                  {pickups.length}
+                </span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('products')}
-              className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
-                activeTab === 'products'
-                  ? 'bg-[#14532D] text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <Package className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Lista de Produtos</span>
-              </span>
-              <span className="font-mono text-[11px] tabular-nums opacity-80">
-                {products.length}
-              </span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'products') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('products')}
+                className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'products'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Package className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Lista de Produtos</span>
+                </span>
+                <span className="font-mono text-[11px] tabular-nums opacity-80">
+                  {products.length}
+                </span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('assisted')}
-              className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
-                activeTab === 'assisted'
-                  ? 'bg-[#14532D] text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <HeartHandshake className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Pessoas Assistidas</span>
-              </span>
-              <span className="font-mono text-[11px] tabular-nums opacity-80">
-                {assistedPeople.length}
-              </span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'assisted') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('assisted')}
+                className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'assisted'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <HeartHandshake className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Pessoas Assistidas</span>
+                </span>
+                <span className="font-mono text-[11px] tabular-nums opacity-80">
+                  {assistedPeople.length}
+                </span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('reports')}
-              className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
-                activeTab === 'reports'
-                  ? 'bg-[#14532D] text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <FileDown className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Relatórios PDF</span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'reports') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('reports')}
+                className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'reports'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <FileDown className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Relatórios PDF</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('editais')}
-              className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
-                activeTab === 'editais'
-                  ? 'bg-[#14532D] text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <Landmark className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Editais (CNAE &amp; TJAC)</span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'editais') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('editais')}
+                className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'editais'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Landmark className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Editais</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('corporate')}
-              className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
-                activeTab === 'corporate'
-                  ? 'bg-[#14532D] text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Dados Corporativos</span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'users') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('users')}
+                className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'users'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <UserCog className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Usuários &amp; Acessos</span>
+              </button>
+            )}
+
+            {hasTabAccess(adminUser?.role, 'corporate') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('corporate')}
+                className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'corporate'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Dados Corporativos</span>
+              </button>
+            )}
           </nav>
         </div>
 
@@ -819,14 +1018,37 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
             <p className="font-mono tabular-nums">Tel: {PIX_INFO.pixPhoneDisplay}</p>
           </div>
           <PWAInstallButton variant="sidebar" />
-          <button
-            type="button"
-            onClick={onExitAdmin}
-            className="flex min-h-[40px] w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Voltar ao Portal Público</span>
-          </button>
+          {adminUser && (
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[11px]">
+              <p className="font-semibold text-slate-800 truncate">
+                {adminUser.nome || adminUser.displayName}
+              </p>
+              <p className="text-slate-500 truncate">{adminUser.email}</p>
+              <p className="mt-0.5 font-mono text-[10px] text-[#14532D]">
+                Nível: {roleDef.shortLabel} ({adminUser.role})
+              </p>
+            </div>
+          )}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={onExitAdmin}
+              className="flex min-h-[40px] w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Voltar ao Portal Público</span>
+            </button>
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="flex min-h-[38px] w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-[#9A3412]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#9A3412] hover:bg-[#FEF2F2]"
+              >
+                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Encerrar Sessão</span>
+              </button>
+            )}
+          </div>
         </div>
       </aside>
 
@@ -836,10 +1058,10 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4">
           <div>
             <p className="text-xs text-slate-500">
-              Administração / Financeiro &amp; Institucional / {tabTitle[activeTab]}
+              Administração / {roleDef.shortLabel} / {tabTitle[safeActiveTab]}
             </p>
             <h1 className="font-serif text-xl font-semibold text-slate-900">
-              {tabTitle[activeTab]}
+              {tabTitle[safeActiveTab]}
             </h1>
           </div>
 
@@ -853,39 +1075,51 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
               <span>Portal</span>
             </button>
 
-            {confirmResetFinancial ? (
-              <div className="flex items-center gap-1.5 rounded-md border border-[#9A3412]/40 bg-[#FEF2F2] px-2.5 py-1">
-                <span className="text-[11px] font-medium text-[#9A3412]">
-                  Zerar todos os valores?
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetAllFinancialData();
-                    setConfirmResetFinancial(false);
-                  }}
-                  className="cursor-pointer rounded bg-[#9A3412] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#7C2D12]"
-                >
-                  Confirmar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmResetFinancial(false)}
-                  className="cursor-pointer rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium text-slate-700"
-                >
-                  Cancelar
-                </button>
-              </div>
-            ) : (
+            {onLogout && (
               <button
                 type="button"
-                onClick={() => setConfirmResetFinancial(true)}
-                className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 whitespace-nowrap shrink-0"
+                onClick={onLogout}
+                className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md border border-[#9A3412]/30 bg-white px-3 py-1.5 text-xs font-medium text-[#9A3412] hover:bg-[#FEF2F2] lg:hidden"
               >
-                <RotateCcw className="h-3.5 w-3.5 text-[#9A3412]" aria-hidden="true" />
-                <span>Zerar Valores</span>
+                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Sair</span>
               </button>
             )}
+
+            {roleDef.canResetFinancial &&
+              (confirmResetFinancial ? (
+                <div className="flex items-center gap-1.5 rounded-md border border-[#9A3412]/40 bg-[#FEF2F2] px-2.5 py-1">
+                  <span className="text-[11px] font-medium text-[#9A3412]">
+                    Zerar todos os valores?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetAllFinancialData();
+                      setConfirmResetFinancial(false);
+                    }}
+                    className="cursor-pointer rounded bg-[#9A3412] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#7C2D12]"
+                  >
+                    Confirmar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmResetFinancial(false)}
+                    className="cursor-pointer rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium text-slate-700"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmResetFinancial(true)}
+                  className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 whitespace-nowrap shrink-0"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-[#9A3412]" aria-hidden="true" />
+                  <span>Zerar Valores</span>
+                </button>
+              ))}
 
             <button
               type="button"
@@ -894,6 +1128,7 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                 handleDownloadPdf({
                   donations: true,
                   volunteers: true,
+                  users: true,
                   revenues: true,
                   donatedFoods: true,
                   pickupsCount: true,
@@ -917,25 +1152,27 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
             >
               <Download className="h-3.5 w-3.5" aria-hidden="true" />
               <span>
-                {activeTab === 'accounting'
+                {safeActiveTab === 'accounting'
                   ? 'Exportar Balancete CSV'
-                  : activeTab === 'assisted'
+                  : safeActiveTab === 'assisted'
                     ? 'Exportar Assistidas CSV'
                     : 'Exportar CSV'}
               </span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('accounting');
-                setShowNewAccForm(true);
-              }}
-              className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md bg-[#14532D] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#0F3F22] whitespace-nowrap shrink-0"
-            >
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Novo Lançamento Contábil</span>
-            </button>
+            {hasTabAccess(adminUser?.role, 'accounting') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('accounting');
+                  setShowNewAccForm(true);
+                }}
+                className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md bg-[#14532D] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#0F3F22] whitespace-nowrap shrink-0"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Novo Lançamento Contábil</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -952,23 +1189,45 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
               ['assisted', 'Assistidas'],
               ['reports', 'Relatórios PDF'],
               ['editais', 'Editais TJAC'],
+              ['users', 'Usuários & RBAC'],
               ['corporate', 'Corporativo'],
             ] as Array<[AdminTab, string]>
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveTab(id)}
-              className={`cursor-pointer rounded px-3 py-1.5 text-xs font-medium whitespace-nowrap shrink-0 ${
-                activeTab === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          )
+            .filter(([id]) => hasTabAccess(adminUser?.role, id))
+            .map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id)}
+                className={`cursor-pointer rounded px-3 py-1.5 text-xs font-medium whitespace-nowrap shrink-0 ${
+                  safeActiveTab === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
         </div>
 
         <main className="flex-1 space-y-6 p-6">
+          {adminUser?.isDefaultPassword && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-950">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+                <span>
+                  Você acessou com a senha inicial padrão. Recomendamos definir sua própria
+                  senha administrativa.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('corporate')}
+                className="cursor-pointer rounded bg-amber-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-800"
+              >
+                Alterar E-mail e Senha
+              </button>
+            </div>
+          )}
+
           {/* KPI Summary Strip (Visitors + Accounting + Monthly Donors + Operations) */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <div className="rounded-lg border border-[#14532D]/30 bg-[#14532D] p-5 text-white">
@@ -1032,8 +1291,15 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
           </div>
 
           {/* TAB 1: OVERVIEW */}
-          {activeTab === 'overview' && (
+          {safeActiveTab === 'overview' && (
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+              <MonthlyDonationsChart
+                donations={donations}
+                accountingEntries={accountingEntries}
+                monthlyDonors={monthlyDonors}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+
               <div className="rounded-lg border border-slate-200 bg-white p-6 xl:col-span-5">
                 <div className="flex items-center justify-between">
                   <h2 className="font-serif text-lg font-semibold text-slate-900">
@@ -1174,7 +1440,7 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
           )}
 
           {/* TAB 2: CONTABILIDADE & BALANCETE */}
-          {activeTab === 'accounting' && (
+          {safeActiveTab === 'accounting' && (
             <div className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-5">
                 <div>
@@ -1389,7 +1655,7 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
           )}
 
           {/* TAB 3: BANCO DE DOADORES MENSAIS */}
-          {activeTab === 'monthly-donors' && (
+          {safeActiveTab === 'monthly-donors' && (
             <div className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-5">
                 <div>
@@ -1657,7 +1923,7 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
           )}
 
           {/* TAB 4: RECEIPTS CONTROL */}
-          {activeTab === 'receipts' && (
+          {safeActiveTab === 'receipts' && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-5">
                 <div>
@@ -1969,7 +2235,7 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
           )}
 
           {/* TAB 5: AGENDAMENTO DE COLETA DE DOAÇÕES */}
-          {activeTab === 'pickups' && (
+          {safeActiveTab === 'pickups' && (
             <div className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-5">
                 <div>
@@ -2277,7 +2543,7 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
           )}
 
           {/* TAB 6: PRODUCT LIST MANAGEMENT */}
-          {activeTab === 'products' && (
+          {safeActiveTab === 'products' && (
             <div className="space-y-5">
               <form
                 onSubmit={handleAddProduct}
@@ -2397,7 +2663,7 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
           )}
 
           {/* TAB 6B: CADASTRO DE PESSOAS ASSISTIDAS PELA ASSOCIAÇÃO */}
-          {activeTab === 'assisted' && (
+          {safeActiveTab === 'assisted' && (
             <div className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-5">
                 <div>
@@ -2649,51 +2915,100 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
           )}
 
           {/* TAB 6C: RELATÓRIOS PDF DO DASHBOARD POR CATEGORIA */}
-          {activeTab === 'reports' && (
+          {safeActiveTab === 'reports' && (
             <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-6">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-[#14532D]">
-                    Exportação Oficial em Arquivo PDF · jsPDF + html2canvas
-                  </p>
-                  <h2 className="mt-1 font-serif text-xl font-semibold text-slate-900">
-                    Relatório Categorizado do Dashboard
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Selecione as categorias abaixo (Doações, Voluntários, Receitas, Alimentos,
-                    Coletas Feitas e Assistidos) e exporte o documento A4 em PDF com captura visual
-                    html2canvas ou formato vetorial.
-                  </p>
+              <div className="rounded-lg border border-slate-200 bg-white p-6 space-y-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-[#14532D]">
+                      Exportação Oficial em Arquivo PDF · jsPDF + jspdf-autotable + html2canvas
+                    </p>
+                    <h2 className="mt-1 font-serif text-xl font-semibold text-slate-900">
+                      Relatórios Mensais de Impacto &amp; Dashboard
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Exporte relatórios mensais de Usuários (RBAC) e Voluntários ou selecione as
+                      categorias do painel para gerar documentos oficiais A4 em PDF.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      type="button"
+                      disabled={isGeneratingPdf}
+                      onClick={() => void handleDownloadUsersAndVolunteersPdf()}
+                      className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md bg-[#14532D] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#0F3F22] disabled:opacity-60"
+                    >
+                      {isGeneratingPdf ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <FileDown className="h-4 w-4" aria-hidden="true" />
+                      )}
+                      <span>PDF: Usuários &amp; Voluntários (Impacto Mensal)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isGeneratingPdf}
+                      onClick={() => handleDownloadPdf(undefined, 'html2canvas')}
+                      className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-[#14532D] bg-[#FBF9F5] px-4 py-2.5 text-xs font-semibold text-[#14532D] hover:bg-[#F4F0E8] disabled:opacity-60"
+                    >
+                      <FileDown className="h-4 w-4" aria-hidden="true" />
+                      <span>Exportar Geral (Visual A4)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isGeneratingPdf}
+                      onClick={() => handleDownloadPdf(undefined, 'autotable')}
+                      className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      <Download className="h-4 w-4" aria-hidden="true" />
+                      <span>PDF Vetorial (Tabelas)</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <button
-                    type="button"
-                    disabled={isGeneratingPdf}
-                    onClick={() => handleDownloadPdf(undefined, 'html2canvas')}
-                    className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md bg-[#14532D] px-5 py-2.5 text-xs font-semibold text-white hover:bg-[#0F3F22] disabled:opacity-60"
-                  >
-                    {isGeneratingPdf ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <FileDown className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    <span>
-                      {isGeneratingPdf
-                        ? 'Capturando e Gerando PDF...'
-                        : 'Exportar PDF (jsPDF + html2canvas)'}
+                {/* Seletor de Mês de Referência para Relatórios Mensais */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="text-xs font-semibold text-slate-700">
+                      Competência do Relatório:
                     </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportMonth('all')}
+                      className={`min-h-[36px] cursor-pointer rounded-md border px-3 text-xs font-medium transition-colors ${
+                        reportMonth === 'all'
+                          ? 'border-[#14532D] bg-[#14532D] text-white'
+                          : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      Todos os períodos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportMonth(new Date().toISOString().slice(0, 7))}
+                      className={`min-h-[36px] cursor-pointer rounded-md border px-3 text-xs font-medium transition-colors ${
+                        reportMonth === new Date().toISOString().slice(0, 7)
+                          ? 'border-[#14532D] bg-[#14532D] text-white'
+                          : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      Mês atual ({new Date().toISOString().slice(0, 7)})
+                    </button>
+                    <input
+                      type="month"
+                      aria-label="Selecionar mês de referência do relatório"
+                      value={reportMonth === 'all' ? '' : reportMonth}
+                      onChange={(e) => setReportMonth(e.target.value || 'all')}
+                      className="min-h-[36px] rounded-md border border-slate-300 bg-white px-2.5 font-mono text-xs text-slate-800 focus:border-[#14532D] focus:outline-none"
+                    />
+                  </div>
 
-                  <button
-                    type="button"
-                    disabled={isGeneratingPdf}
-                    onClick={() => handleDownloadPdf(undefined, 'autotable')}
-                    className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-[#14532D] bg-white px-4 py-2.5 text-xs font-semibold text-[#14532D] hover:bg-[#F4F0E8] disabled:opacity-60"
-                  >
-                    <Download className="h-4 w-4" aria-hidden="true" />
-                    <span>PDF Vetorial (Tabelas)</span>
-                  </button>
+                  <p className="font-mono text-xs tabular-nums text-slate-500">
+                    Período ativo: {formatReferenceMonthLabel(reportMonth)}
+                  </p>
                 </div>
               </div>
 
@@ -2707,21 +3022,43 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                 {(
                   [
                     {
-                      key: 'donations',
-                      title: 'Relatório de Doações',
-                      metric: `${donations.length} registro(s)`,
-                      detail: `${metrics.receivedCount} liquidadas · Pendentes R$ ${metrics.pendingBRL
-                        .toFixed(2)
-                        .replace('.', ',')}`,
+                      key: 'users',
+                      title: 'Usuários do Sistema (RBAC)',
+                      metric: `${
+                        systemUsers.filter((u) => matchesReferenceMonth(u.createdAt, reportMonth))
+                          .length
+                      } conta(s) no período`,
+                      detail: `${systemUsers.filter((u) => u.status === 'ativo').length} ativas · ${
+                        systemUsers.filter((u) => u.role === 'admin').length
+                      } admin / ${
+                        systemUsers.filter((u) => u.role === 'gerente').length
+                      } gerente / ${
+                        systemUsers.filter((u) => u.role === 'usuario').length
+                      } usuário`,
                     },
                     {
                       key: 'volunteers',
                       title: 'Relatório de Voluntários',
-                      metric: `${VOLUNTEER_ROLES.length} frentes · ${volunteerApplications.length} inscrição(ões)`,
+                      metric: `${VOLUNTEER_ROLES.length} frentes · ${
+                        volunteerApplications.filter((v) =>
+                          matchesReferenceMonth(v.createdAt, reportMonth)
+                        ).length
+                      } inscrição(ões)`,
                       detail: `${VOLUNTEER_ROLES.reduce(
                         (s, r) => s + r.spotsFilled,
                         0
                       )}/${VOLUNTEER_ROLES.reduce((s, r) => s + r.spotsTotal, 0)} posições ocupadas`,
+                    },
+                    {
+                      key: 'donations',
+                      title: 'Relatório de Doações',
+                      metric: `${
+                        donations.filter((d) => matchesReferenceMonth(d.createdAt, reportMonth))
+                          .length
+                      } registro(s)`,
+                      detail: `${metrics.receivedCount} liquidadas · Pendentes R$ ${metrics.pendingBRL
+                        .toFixed(2)
+                        .replace('.', ',')}`,
                     },
                     {
                       key: 'revenues',
@@ -2748,7 +3085,11 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                     {
                       key: 'assistedPeople',
                       title: 'Cadastro de Pessoas Assistidas',
-                      metric: `${assistedPeople.length} pessoa(s)`,
+                      metric: `${
+                        assistedPeople.filter((p) =>
+                          matchesReferenceMonth(p.createdAt, reportMonth)
+                        ).length
+                      } pessoa(s)`,
                       detail: `${assistedPeople.filter((p) => p.status === 'Ativa').length} ativa(s) no acompanhamento`,
                     },
                   ] as Array<{
@@ -2868,9 +3209,11 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                       products={products}
                       pickups={pickups}
                       volunteerApplications={volunteerApplications}
+                      systemUsers={systemUsers}
                       assistedPeople={assistedPeople}
                       visitorStats={visitorStats}
                       categories={pdfCategories}
+                      referenceMonth={reportMonth}
                     />
                   </div>
                 </div>
@@ -2879,10 +3222,22 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
           )}
 
           {/* TAB 7: COLETA DE EDITAIS (CNAE & TJAC) */}
-          {activeTab === 'editais' && <EditaisCollectorPanel variant="admin" />}
+          {safeActiveTab === 'editais' && <EditaisCollectorPanel variant="admin" />}
 
-          {/* TAB 8: DADOS CORPORATIVOS & LOCALIZAÇÃO DA SEDE */}
-          {activeTab === 'corporate' && (
+          {/* TAB 8: USUÁRIOS E NÍVEIS DE ACESSO (RBAC - SOMENTE ADMIN) */}
+          {safeActiveTab === 'users' && roleDef.canManageUsers && adminUser && (
+            <AdminAccessControlPanel
+              currentUser={adminUser}
+              volunteerApplications={volunteerApplications}
+              visitorStats={visitorStats}
+              assistedPeople={assistedPeople}
+              donations={donations}
+              pickups={pickups}
+            />
+          )}
+
+          {/* TAB 9: DADOS CORPORATIVOS & LOCALIZAÇÃO DA SEDE */}
+          {safeActiveTab === 'corporate' && (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
               <div className="rounded-lg border border-slate-200 bg-white p-6 lg:col-span-6">
                 <p className="text-xs font-semibold uppercase tracking-widest text-[#14532D]">
@@ -2980,12 +3335,162 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
                   </a>
                 </div>
               </div>
+
+              {/* Segurança & Alteração de E-mail e Senha do Administrador */}
+              <div className="rounded-lg border border-slate-200 bg-white p-6 lg:col-span-12">
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-[#14532D]">
+                      Segurança de Acesso ao Painel
+                    </p>
+                    <h3 className="mt-1 font-serif text-lg font-semibold text-slate-900">
+                      Alterar E-mail e Senha do Administrador
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Mantenha o acesso restrito da diretoria protegido com senha pessoal
+                      (criptografia scrypt no servidor).
+                    </p>
+                  </div>
+                  {adminUser && (
+                    <div className="text-right text-xs text-slate-600">
+                      <p className="font-medium text-slate-900">
+                        {adminUser.nome || adminUser.displayName}
+                      </p>
+                      <p className="font-mono text-[11px]">{adminUser.email}</p>
+                    </div>
+                  )}
+                </div>
+
+                <form onSubmit={handleUpdateCredentials} className="mt-5 space-y-4">
+                  {secError && (
+                    <div
+                      role="alert"
+                      className="rounded-md border border-[#DC2626]/30 bg-[#FEF2F2] px-3.5 py-2.5 text-xs font-medium text-[#991B1B]"
+                    >
+                      {secError}
+                    </div>
+                  )}
+                  {secSuccess && (
+                    <div
+                      role="status"
+                      className="flex items-center gap-2 rounded-md border border-[#14532D]/30 bg-[#F0FDF4] px-3.5 py-2.5 text-xs font-medium text-[#14532D]"
+                    >
+                      <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span>{secSuccess}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    <div>
+                      <label
+                        htmlFor="sec-display-name"
+                        className="block text-xs font-semibold text-slate-700"
+                      >
+                        Identificação
+                      </label>
+                      <input
+                        id="sec-display-name"
+                        type="text"
+                        value={secDisplayName}
+                        onChange={(e) => setSecDisplayName(e.target.value)}
+                        className="mt-1 min-h-[40px] w-full rounded-md border border-slate-300 px-3 text-xs text-slate-900 focus:border-[#14532D] focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="sec-email"
+                        className="block text-xs font-semibold text-slate-700"
+                      >
+                        E-mail de Login *
+                      </label>
+                      <input
+                        id="sec-email"
+                        type="email"
+                        required
+                        value={secNewEmail}
+                        onChange={(e) => setSecNewEmail(e.target.value)}
+                        className="mt-1 min-h-[40px] w-full rounded-md border border-slate-300 px-3 text-xs text-slate-900 focus:border-[#14532D] focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="sec-current-password"
+                        className="block text-xs font-semibold text-slate-700"
+                      >
+                        Senha Atual *
+                      </label>
+                      <input
+                        id="sec-current-password"
+                        type="password"
+                        required
+                        value={secCurrentPassword}
+                        onChange={(e) => setSecCurrentPassword(e.target.value)}
+                        placeholder="Obrigatória para salvar"
+                        className="mt-1 min-h-[40px] w-full rounded-md border border-slate-300 px-3 text-xs text-slate-900 focus:border-[#14532D] focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="sec-new-password"
+                        className="block text-xs font-semibold text-slate-700"
+                      >
+                        Nova Senha (opcional)
+                      </label>
+                      <input
+                        id="sec-new-password"
+                        type="password"
+                        value={secNewPassword}
+                        onChange={(e) => setSecNewPassword(e.target.value)}
+                        placeholder="Mín. 6 caracteres"
+                        className="mt-1 min-h-[40px] w-full rounded-md border border-slate-300 px-3 text-xs text-slate-900 focus:border-[#14532D] focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="sec-confirm-password"
+                        className="block text-xs font-semibold text-slate-700"
+                      >
+                        Confirmar Nova Senha
+                      </label>
+                      <input
+                        id="sec-confirm-password"
+                        type="password"
+                        value={secConfirmPassword}
+                        onChange={(e) => setSecConfirmPassword(e.target.value)}
+                        placeholder="Repita a nova senha"
+                        className="mt-1 min-h-[40px] w-full rounded-md border border-slate-300 px-3 text-xs text-slate-900 focus:border-[#14532D] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
+                    <button
+                      type="submit"
+                      disabled={secSaving}
+                      className="inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22] disabled:opacity-60"
+                    >
+                      {secSaving ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                      <span>
+                        {secSaving ? 'Salvando...' : 'Atualizar Credenciais de Login'}
+                      </span>
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </main>
 
         {/* Offscreen A4 printable container for instant html2canvas + jsPDF export from any admin tab */}
-        {activeTab !== 'reports' && (
+        {safeActiveTab !== 'reports' && (
           <div
             aria-hidden="true"
             style={{
@@ -3003,16 +3508,19 @@ export function AdminDashboard({ onExitAdmin }: AdminDashboardProps) {
               products={products}
               pickups={pickups}
               volunteerApplications={volunteerApplications}
+              systemUsers={systemUsers}
               assistedPeople={assistedPeople}
               visitorStats={visitorStats}
               categories={{
                 donations: true,
                 volunteers: true,
+                users: true,
                 revenues: true,
                 donatedFoods: true,
                 pickupsCount: true,
                 assistedPeople: true,
               }}
+              referenceMonth={reportMonth}
             />
           </div>
         )}

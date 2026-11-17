@@ -1,4 +1,5 @@
 import { CSSProperties, forwardRef } from 'react';
+import { AdminUser, getRoleDefinition } from '../data/adminAuthClient';
 import { AssistedPersonRecord } from '../data/assistedPeopleStore';
 import {
   AccountingEntry,
@@ -14,7 +15,11 @@ import {
 } from '../data/institutionalData';
 import { VisitorStats } from '../data/visitorStore';
 import { VolunteerApplication } from '../data/volunteersStore';
-import { DashboardPdfCategories } from '../utils/dashboardPdfReport';
+import {
+  DashboardPdfCategories,
+  formatReferenceMonthLabel,
+  matchesReferenceMonth,
+} from '../utils/dashboardPdfReport';
 
 export interface DashboardReportPrintableProps {
   donations: DonationRecord[];
@@ -23,9 +28,11 @@ export interface DashboardReportPrintableProps {
   products: DonationProductItem[];
   pickups: PickupScheduleRecord[];
   volunteerApplications: VolunteerApplication[];
+  systemUsers?: AdminUser[];
   assistedPeople: AssistedPersonRecord[];
   visitorStats: VisitorStats;
   categories: DashboardPdfCategories;
+  referenceMonth?: string;
 }
 
 function formatBRL(value: number): string {
@@ -70,9 +77,11 @@ export const DashboardReportPrintable = forwardRef<
     products,
     pickups,
     volunteerApplications,
+    systemUsers = [],
     assistedPeople,
     visitorStats,
     categories,
+    referenceMonth = 'all',
   },
   ref
 ) {
@@ -80,11 +89,31 @@ export const DashboardReportPrintable = forwardRef<
     dateStyle: 'short',
     timeStyle: 'short',
   });
+  const periodLabel = formatReferenceMonthLabel(referenceMonth);
 
-  const totalEntradas = accountingEntries
+  const scopedDonations = donations.filter((d) =>
+    matchesReferenceMonth(d.createdAt, referenceMonth)
+  );
+  const scopedAccounting = accountingEntries.filter((a) =>
+    matchesReferenceMonth(a.date, referenceMonth)
+  );
+  const scopedVolunteers = volunteerApplications.filter((v) =>
+    matchesReferenceMonth(v.createdAt, referenceMonth)
+  );
+  const scopedUsers = systemUsers.filter((u) =>
+    matchesReferenceMonth(u.createdAt, referenceMonth)
+  );
+  const scopedPickups = pickups.filter((p) =>
+    matchesReferenceMonth(p.preferredDate || p.createdAt, referenceMonth)
+  );
+  const scopedAssisted = assistedPeople.filter((p) =>
+    matchesReferenceMonth(p.createdAt, referenceMonth)
+  );
+
+  const totalEntradas = scopedAccounting
     .filter((a) => a.kind === 'Entrada')
     .reduce((acc, a) => acc + a.amountBRL, 0);
-  const totalSaidas = accountingEntries
+  const totalSaidas = scopedAccounting
     .filter((a) => a.kind === 'Saída')
     .reduce((acc, a) => acc + a.amountBRL, 0);
   const netBalance = totalEntradas - totalSaidas;
@@ -92,8 +121,9 @@ export const DashboardReportPrintable = forwardRef<
     .filter((m) => m.status !== 'Pausado')
     .reduce((acc, m) => acc + m.monthlyAmountBRL, 0);
   const totalFoodUnits = products.reduce((sum, p) => sum + p.receivedQty, 0);
-  const completedPickups = pickups.filter((p) => p.status === 'Coletada').length;
-  const activeAssisted = assistedPeople.filter((p) => p.status === 'Ativa').length;
+  const completedPickups = scopedPickups.filter((p) => p.status === 'Coletada').length;
+  const activeAssisted = scopedAssisted.filter((p) => p.status === 'Ativa').length;
+  const activeUsers = scopedUsers.filter((u) => u.status === 'ativo').length;
 
   let sectionIndex = 1;
 
@@ -177,7 +207,10 @@ export const DashboardReportPrintable = forwardRef<
           }}
         >
           <p style={{ margin: 0, fontWeight: 700 }}>Emissão: {generatedAt}</p>
-          <p style={{ margin: '4px 0 0' }}>
+          <p style={{ margin: '3px 0 0', color: '#DCFCE7', fontWeight: 600 }}>
+            Competência: {periodLabel}
+          </p>
+          <p style={{ margin: '3px 0 0' }}>
             Visitas no portal: {visitorStats.totalVisits.toLocaleString('pt-BR')}
           </p>
           <p style={{ margin: '2px 0 0' }}>
@@ -198,23 +231,23 @@ export const DashboardReportPrintable = forwardRef<
         }}
       >
         {[
-          { label: 'Doações Registradas', value: `${donations.length} registro(s)` },
+          { label: 'Doações Registradas', value: `${scopedDonations.length} registro(s)` },
           {
             label: 'Receitas / Saldo Contábil',
             value: `${formatBRL(totalEntradas)} / ${formatBRL(netBalance)}`,
           },
           {
-            label: 'Voluntários (Frentes / Inscritos)',
-            value: `${VOLUNTEER_ROLES.length} / ${volunteerApplications.length}`,
+            label: 'Usuários RBAC / Voluntários',
+            value: `${scopedUsers.length} (${activeUsers} ativ.) / ${scopedVolunteers.length} vol.`,
           },
           { label: 'Alimentos / Insumos Doados', value: `${totalFoodUnits} unid/kg` },
           {
             label: 'Coletas Feitas / Agendadas',
-            value: `${completedPickups} / ${pickups.length}`,
+            value: `${completedPickups} / ${scopedPickups.length}`,
           },
           {
             label: 'Pessoas Assistidas',
-            value: `${assistedPeople.length} (${activeAssisted} ativas)`,
+            value: `${scopedAssisted.length} (${activeAssisted} ativas)`,
           },
         ].map((kpi) => (
           <div
@@ -285,8 +318,8 @@ export const DashboardReportPrintable = forwardRef<
                 </tr>
               </thead>
               <tbody>
-                {donations.length > 0 ? (
-                  donations.map((d, i) => (
+                {scopedDonations.length > 0 ? (
+                  scopedDonations.map((d, i) => (
                     <tr
                       key={d.id}
                       style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#FBF9F5' }}
@@ -330,7 +363,7 @@ export const DashboardReportPrintable = forwardRef<
                 Categoria {sectionIndex++}
               </p>
               <h2 style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 700, color: '#1C1917' }}>
-                Relatório de Voluntários
+                Relatório de Voluntários ({scopedVolunteers.length} inscrição(ões) no período)
               </h2>
             </div>
 
@@ -369,6 +402,9 @@ export const DashboardReportPrintable = forwardRef<
                     Voluntário Inscrito via Portal
                   </th>
                   <th style={{ ...thStyle, backgroundColor: '#44403C', borderBottomColor: '#44403C' }}>
+                    E-mail
+                  </th>
+                  <th style={{ ...thStyle, backgroundColor: '#44403C', borderBottomColor: '#44403C' }}>
                     Telefone
                   </th>
                   <th style={{ ...thStyle, backgroundColor: '#44403C', borderBottomColor: '#44403C' }}>
@@ -383,23 +419,91 @@ export const DashboardReportPrintable = forwardRef<
                 </tr>
               </thead>
               <tbody>
-                {volunteerApplications.length > 0 ? (
-                  volunteerApplications.map((v, i) => (
+                {scopedVolunteers.length > 0 ? (
+                  scopedVolunteers.map((v, i) => (
                     <tr
                       key={v.id}
                       style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#FBF9F5' }}
                     >
                       <td style={tdStyle}>{v.fullName}</td>
+                      <td style={tdStyle}>{v.email || '—'}</td>
                       <td style={tdStyle}>{v.phone}</td>
                       <td style={tdStyle}>{v.roleTitle}</td>
                       <td style={tdStyle}>{v.availability}</td>
-                      <td style={tdStyle}>{v.createdAt}</td>
+                      <td style={tdStyle}>{new Date(v.createdAt).toLocaleDateString('pt-BR')}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#64748B' }}>
-                      Nenhuma nova inscrição de voluntário registrada neste dispositivo.
+                    <td colSpan={6} style={{ ...tdStyle, textAlign: 'center', color: '#64748B' }}>
+                      Nenhuma nova inscrição de voluntário registrada neste período.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </section>
+        )}
+
+        {/* 2B. USUÁRIOS DO SISTEMA (RBAC) */}
+        {categories.users && (
+          <section>
+            <div
+              style={{
+                backgroundColor: '#F4F0E8',
+                borderLeft: '4px solid #14532D',
+                padding: '8px 12px',
+                marginBottom: '8px',
+              }}
+            >
+              <p style={{ margin: 0, fontSize: '9.5px', fontWeight: 700, color: '#14532D', textTransform: 'uppercase' }}>
+                Categoria {sectionIndex++}
+              </p>
+              <h2 style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 700, color: '#1C1917' }}>
+                Usuários Cadastrados e Controle de Acesso (RBAC) ({scopedUsers.length})
+              </h2>
+            </div>
+
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Nome Completo</th>
+                  <th style={thStyle}>E-mail</th>
+                  <th style={thStyle}>Nível (Role)</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Cadastro</th>
+                  <th style={thStyle}>Último Acesso</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scopedUsers.length > 0 ? (
+                  scopedUsers.map((u, i) => (
+                    <tr
+                      key={u.id}
+                      style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#FBF9F5' }}
+                    >
+                      <td style={tdStyle}>{u.nome || u.displayName}</td>
+                      <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{u.email}</td>
+                      <td style={tdStyle}>
+                        {getRoleDefinition(u.role).shortLabel} ({u.role})
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>
+                        {u.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                      </td>
+                      <td style={{ ...tdStyle, fontFamily: 'monospace' }}>
+                        {new Date(u.createdAt).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td style={{ ...tdStyle, fontFamily: 'monospace' }}>
+                        {u.lastLoginAt
+                          ? new Date(u.lastLoginAt).toLocaleDateString('pt-BR')
+                          : 'Nunca acessou'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} style={{ ...tdStyle, textAlign: 'center', color: '#64748B' }}>
+                      Nenhum usuário cadastrado na competência selecionada.
                     </td>
                   </tr>
                 )}
@@ -443,8 +547,8 @@ export const DashboardReportPrintable = forwardRef<
                 </tr>
               </thead>
               <tbody>
-                {accountingEntries.length > 0 ? (
-                  accountingEntries.map((a, i) => (
+                {scopedAccounting.length > 0 ? (
+                  scopedAccounting.map((a, i) => (
                     <tr
                       key={a.id}
                       style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#FBF9F5' }}
@@ -543,7 +647,7 @@ export const DashboardReportPrintable = forwardRef<
                 Categoria {sectionIndex++}
               </p>
               <h2 style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 700, color: '#1C1917' }}>
-                Relatório de Número de Coletas Feitas ({completedPickups} concluídas / {pickups.length} total)
+                Relatório de Número de Coletas Feitas ({completedPickups} concluídas / {scopedPickups.length} total)
               </h2>
             </div>
 
@@ -559,8 +663,8 @@ export const DashboardReportPrintable = forwardRef<
                 </tr>
               </thead>
               <tbody>
-                {pickups.length > 0 ? (
-                  pickups.map((p, i) => (
+                {scopedPickups.length > 0 ? (
+                  scopedPickups.map((p, i) => (
                     <tr
                       key={p.id}
                       style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#FBF9F5' }}
@@ -604,7 +708,7 @@ export const DashboardReportPrintable = forwardRef<
                 Categoria {sectionIndex++}
               </p>
               <h2 style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 700, color: '#1C1917' }}>
-                Cadastro de Pessoas Assistidas pela Associação ({assistedPeople.length})
+                Cadastro de Pessoas Assistidas pela Associação ({scopedAssisted.length})
               </h2>
             </div>
 
@@ -620,8 +724,8 @@ export const DashboardReportPrintable = forwardRef<
                 </tr>
               </thead>
               <tbody>
-                {assistedPeople.length > 0 ? (
-                  assistedPeople.map((p, i) => (
+                {scopedAssisted.length > 0 ? (
+                  scopedAssisted.map((p, i) => (
                     <tr
                       key={p.id}
                       style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#FBF9F5' }}

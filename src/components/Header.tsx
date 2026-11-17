@@ -1,10 +1,13 @@
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { AdminUser, canEnterAdminPanel } from '../data/adminAuthClient';
 import { OFFICIAL_ASSETS } from '../data/institutionalData';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
+  authUser?: AdminUser | null;
   onOpenAdmin: () => void;
+  onOpenAccount?: () => void;
   onJumpToVolunteer: () => void;
 }
 
@@ -12,20 +15,40 @@ const NAV_LINKS = [
   { href: '#vagas', label: 'Vagas' },
   { href: '#doacoes', label: 'Doar' },
   { href: '#producao', label: 'Produção' },
+  { href: '#depoimentos', label: 'Depoimentos' },
   { href: '#central-ia', label: 'Editais & Mapa' },
   { href: '#historia', label: 'História' },
 ];
 
-export function Header({ onOpenAdmin, onJumpToVolunteer }: HeaderProps) {
+export function Header({
+  authUser,
+  onOpenAdmin,
+  onOpenAccount,
+  onJumpToVolunteer,
+}: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isPrivileged = Boolean(authUser && canEnterAdminPanel(authUser.role));
+  const isStandardUser = Boolean(authUser && !canEnterAdminPanel(authUser.role));
+
+  const accountActionLabel = isPrivileged
+    ? 'Painel'
+    : isStandardUser
+      ? 'Minha Conta'
+      : 'Entrar';
+
+  const handleAccountAction = () => {
+    if (isStandardUser && onOpenAccount) {
+      onOpenAccount();
+      return;
+    }
+    onOpenAdmin();
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#D6CEBE] bg-[#FBF9F5]/95 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-8 px-6 py-3.5">
-        <a
-          href="#inicio"
-          className="flex min-w-0 items-center gap-3 group"
-        >
+      <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-6 px-6 py-3.5">
+        <a href="#inicio" className="flex min-w-0 items-center gap-3 group">
           <img
             src={OFFICIAL_ASSETS.logo}
             alt="Logo oficial Projeto Sopão Acre"
@@ -39,7 +62,7 @@ export function Header({ onOpenAdmin, onJumpToVolunteer }: HeaderProps) {
 
         <nav
           aria-label="Navegação principal"
-          className="hidden lg:flex items-center gap-6 text-sm font-medium text-[#57534E]"
+          className="hidden lg:flex items-center gap-5 text-sm font-medium text-[#57534E]"
         >
           {NAV_LINKS.map((link) => (
             <a
@@ -52,10 +75,10 @@ export function Header({ onOpenAdmin, onJumpToVolunteer }: HeaderProps) {
           ))}
           <button
             type="button"
-            onClick={onOpenAdmin}
+            onClick={handleAccountAction}
             className="whitespace-nowrap shrink-0 cursor-pointer transition-colors duration-150 hover:text-[#1C1917] hover:underline underline-offset-4"
           >
-            Painel
+            {accountActionLabel}
           </button>
         </nav>
 
@@ -101,11 +124,15 @@ export function Header({ onOpenAdmin, onJumpToVolunteer }: HeaderProps) {
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
-                onOpenAdmin();
+                handleAccountAction();
               }}
               className="py-1.5 text-left text-sm font-medium text-[#1C1917]"
             >
-              Painel Administrativo
+              {isPrivileged
+                ? 'Painel Administrativo'
+                : isStandardUser
+                  ? 'Minha Conta'
+                  : 'Entrar / Criar Conta'}
             </button>
             <div className="pt-2">
               <PWAInstallButton
