@@ -2,6 +2,7 @@ import { ArrowRight, BookOpen, Eye, Users, Volume2 } from 'lucide-react';
 import { INSTITUTION_PROFILE, OFFICIAL_ASSETS } from '../data/institutionalData';
 import { useLanguage } from '../i18n/LanguageContext';
 import { DonateButton } from './DonateButton';
+import { MonthlyGoalProgress } from './MonthlyGoalProgress';
 import { PWAInstallButton } from './PWAInstallButton';
 import { WhatsAppButton } from './WhatsAppButton';
 
@@ -186,7 +187,12 @@ export function HeroSection({
           </div>
         </div>
 
-        <div className="mt-10 border-t border-[#E2DDD3] pt-6">
+        <MonthlyGoalProgress
+          onOpenDonate={onOpenDonate}
+          onJumpToVolunteer={onJumpToVolunteer}
+        />
+
+        <div className="mt-8 border-t border-[#E2DDD3] pt-6">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <div className="border-b border-[#E2DDD3] pb-4 sm:border-b-0 sm:border-r sm:pr-6 sm:pb-0">
               <p className="text-xs uppercase tracking-widest text-[#78716C]">

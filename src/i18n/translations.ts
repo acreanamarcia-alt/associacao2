@@ -55,6 +55,21 @@ export interface SiteTranslations {
     specPublicValue: string;
     specPublicSub: string;
     specFomentoLabel: string;
+    monthlyGoal: {
+      kicker: string;
+      tabMeals: string;
+      tabHours: string;
+      mealsUnit: string;
+      hoursUnit: string;
+      targetPrefix: string;
+      reachedSuffix: string;
+      remainingPrefix: string;
+      completedLabel: string;
+      breakdownMeals: string;
+      breakdownHours: string;
+      ctaMeals: string;
+      ctaHours: string;
+    };
   };
   volunteer: {
     kicker: string;
@@ -344,6 +359,21 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       specPublicValue: 'Lei nº 3.809/2021',
       specPublicSub: 'Governo do Estado do Acre · DOE 24/11/21',
       specFomentoLabel: 'Fomento & Controle',
+      monthlyGoal: {
+        kicker: 'Acompanhamento Mensal de Impacto',
+        tabMeals: 'Refeições Servidas',
+        tabHours: 'Horas Voluntárias',
+        mealsUnit: 'refeições',
+        hoursUnit: 'horas',
+        targetPrefix: 'Meta mensal:',
+        reachedSuffix: 'da meta alcançada',
+        remainingPrefix: 'Faltam',
+        completedLabel: 'Meta mensal atingida!',
+        breakdownMeals: 'Cozinha solidária, panificação e doações confirmadas no mês',
+        breakdownHours: 'Turnos presenciais da equipe e novas inscrições voluntárias no mês',
+        ctaMeals: 'Ajudar a servir mais refeições',
+        ctaHours: 'Somar horas como voluntário',
+      },
     },
     volunteer: {
       kicker: 'Central de Voluntariado · Bairro Olaria, Plácido de Castro - AC',
@@ -651,6 +681,21 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       specPublicValue: 'State Law nº 3.809/2021',
       specPublicSub: 'Government of Acre · Official Gazette 11/24/21',
       specFomentoLabel: 'Public Grant & Oversight',
+      monthlyGoal: {
+        kicker: 'Monthly Impact Tracker',
+        tabMeals: 'Meals Served',
+        tabHours: 'Volunteer Hours',
+        mealsUnit: 'meals',
+        hoursUnit: 'hours',
+        targetPrefix: 'Monthly goal:',
+        reachedSuffix: 'of monthly goal reached',
+        remainingPrefix: 'Remaining:',
+        completedLabel: 'Monthly goal reached!',
+        breakdownMeals: 'Community kitchen, bakery batches, and confirmed donations this month',
+        breakdownHours: 'On-site volunteer shifts and active portal sign-ups this month',
+        ctaMeals: 'Help fund more meals',
+        ctaHours: 'Contribute volunteer hours',
+      },
     },
     volunteer: {
       kicker: 'Volunteer Hub · Bairro Olaria, Plácido de Castro - AC',
@@ -957,6 +1002,21 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       specPublicValue: 'Ley nº 3.809/2021',
       specPublicSub: 'Gobierno del Estado de Acre · DOE 24/11/21',
       specFomentoLabel: 'Fomento y Control',
+      monthlyGoal: {
+        kicker: 'Seguimiento Mensual de Impacto',
+        tabMeals: 'Comidas Servidas',
+        tabHours: 'Horas Voluntarias',
+        mealsUnit: 'comidas',
+        hoursUnit: 'horas',
+        targetPrefix: 'Meta mensual:',
+        reachedSuffix: 'de la meta alcanzada',
+        remainingPrefix: 'Faltan',
+        completedLabel: '¡Meta mensual alcanzada!',
+        breakdownMeals: 'Cocina solidaria, panadería y donaciones confirmadas este mes',
+        breakdownHours: 'Turnos presenciales del equipo y nuevas inscripciones este mes',
+        ctaMeals: 'Ayudar a servir más comidas',
+        ctaHours: 'Sumar horas como voluntario',
+      },
     },
     volunteer: {
       kicker: 'Central de Voluntariado · Bairro Olaria, Plácido de Castro - AC',
