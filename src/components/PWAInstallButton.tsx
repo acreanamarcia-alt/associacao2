@@ -2,6 +2,7 @@ import { ArrowUpRight, Download, Share, Smartphone, X } from 'lucide-react';
 import { useState } from 'react';
 import { INSTITUTION_PROFILE, OFFICIAL_ASSETS } from '../data/institutionalData';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface PWAInstallButtonProps {
   variant?: 'header' | 'hero' | 'sidebar';
@@ -11,6 +12,7 @@ interface PWAInstallButtonProps {
 export function PWAInstallButton({ variant = 'header', onAfterAction }: PWAInstallButtonProps) {
   const { isInstallable, isInstalled, isIOS, isInIframe, install } = usePWAInstall();
   const [showGuideModal, setShowGuideModal] = useState(false);
+  const { t } = useLanguage();
 
   if (isInstalled) {
     return null;
@@ -41,7 +43,7 @@ export function PWAInstallButton({ variant = 'header', onAfterAction }: PWAInsta
           aria-hidden="true"
           className="h-5 w-5 rounded-full border border-[#14532D]/20 bg-white object-cover"
         />
-        <span>Instalar Aplicativo</span>
+        <span>{t.pwa.installApp}</span>
         <Download className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
 
@@ -66,7 +68,7 @@ export function PWAInstallButton({ variant = 'header', onAfterAction }: PWAInsta
                 />
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-[#14532D]">
-                    Aplicativo Instalável (PWA)
+                    {t.pwa.badge}
                   </p>
                   <h3 id="pwa-install-title" className="font-serif text-lg font-semibold">
                     Bom Pastor — Projeto Sopão
@@ -138,7 +140,7 @@ export function PWAInstallButton({ variant = 'header', onAfterAction }: PWAInsta
                   rel="noopener noreferrer"
                   className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
                 >
-                  <span>Abrir em nova guia para instalar</span>
+                  <span>{t.pwa.openNewTab}</span>
                   <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </a>
               )}
@@ -147,7 +149,7 @@ export function PWAInstallButton({ variant = 'header', onAfterAction }: PWAInsta
                 onClick={() => setShowGuideModal(false)}
                 className="inline-flex min-h-[40px] cursor-pointer items-center rounded-md border border-[#D6CEBE] bg-white px-4 py-2 text-xs font-semibold text-[#1C1917] hover:bg-[#EFEBE3]"
               >
-                Fechar
+                {t.pwa.close}
               </button>
             </div>
 

@@ -19,6 +19,7 @@ import {
   useDonationsStore,
 } from '../data/donationsStore';
 import { SACOLOES_GALLERY_ITEMS } from '../data/institutionalData';
+import { useLanguage } from '../i18n/LanguageContext';
 import { DonateButton } from './DonateButton';
 import { SacoloesDonationsTab } from './SacoloesDonationsTab';
 
@@ -36,6 +37,7 @@ const PRODUCT_CATEGORIES: Array<'Todos' | ProductCategory> = [
 ];
 
 export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSectionProps) {
+  const { t } = useLanguage();
   const { products, addPickupSchedule } = useDonationsStore();
   const [activeTab, setActiveTab] = useState<'produtos' | 'sacoloes' | 'agendamento'>('produtos');
   const [productFilter, setProductFilter] = useState<'Todos' | ProductCategory>('Todos');
@@ -149,15 +151,13 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
         <div className="flex flex-col justify-between gap-6 border-b border-[#D6CEBE] pb-8 lg:flex-row lg:items-end">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-widest text-[#9A3412]">
-              Apoio Financeiro, Doadores Mensais &amp; Coletas
+              {t.donations.kicker}
             </p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-[#1C1917] sm:text-4xl">
-              Contribua via PIX, torne-se doador mensal ou agende uma coleta
+              {t.donations.title}
             </h2>
             <p className="mt-3 text-base leading-relaxed text-[#44403C]">
-              Cada contribuição mantém a cozinha comunitária e a panificação solidária em
-              Plácido de Castro. Apoie com doação única, assinatura mensal via PIX ou produtos
-              da lista abaixo.
+              {t.donations.subtitle}
             </p>
           </div>
 
@@ -165,7 +165,7 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
             <DonateButton
               onClick={() => onOpenDonateModal('pix')}
               variant="primary"
-              label="Doar agora (PIX / Gateway)"
+              label={t.donations.donateNow}
               showSecurityHint
             />
             <button
@@ -174,14 +174,14 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
               className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md bg-[#14532D] px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#0F3F22] whitespace-nowrap shrink-0"
             >
               <CalendarClock className="h-4 w-4" aria-hidden="true" />
-              <span>Ser Doador Mensal</span>
+              <span>{t.donations.monthlyDonor}</span>
             </button>
             <button
               type="button"
               onClick={onOpenAdmin}
               className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-[#D6CEBE] bg-white px-4 py-2.5 text-xs font-semibold text-[#1C1917] transition-colors hover:bg-[#EFEBE3] whitespace-nowrap shrink-0"
             >
-              <span>Painel &amp; Contabilidade</span>
+              <span>{t.donations.adminPanel}</span>
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
@@ -196,7 +196,7 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-widest text-[#78716C]">
-                  Chave PIX · CNPJ Institucional
+                  {t.donations.pixCnpjTitle}
                 </p>
                 <p className="mt-1 font-mono text-base font-semibold tabular-nums text-[#1C1917]">
                   {PIX_INFO.pixKey}
@@ -214,7 +214,7 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
               ) : (
                 <Copy className="h-4 w-4" />
               )}
-              <span>{copiedKey === 'cnpj' ? 'CNPJ copiado' : 'Copiar CNPJ'}</span>
+              <span>{copiedKey === 'cnpj' ? t.donations.copiedCnpj : t.donations.copyCnpj}</span>
             </button>
           </div>
 
@@ -225,14 +225,12 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-widest text-[#78716C]">
-                  Chave PIX &amp; WhatsApp · Telefone
+                  {t.donations.pixPhoneTitle}
                 </p>
                 <p className="mt-1 font-mono text-base font-semibold tabular-nums text-[#1C1917]">
                   {PIX_INFO.pixPhoneDisplay}
                 </p>
-                <p className="text-xs text-[#57534E]">
-                  Transferência PIX ou envio de comprovantes
-                </p>
+                <p className="text-xs text-[#57534E]">{t.donations.pixPhoneSub}</p>
               </div>
             </div>
             <button
@@ -245,7 +243,7 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
               ) : (
                 <Copy className="h-4 w-4" />
               )}
-              <span>{copiedKey === 'phone' ? 'Telefone copiado' : 'Copiar Telefone'}</span>
+              <span>{copiedKey === 'phone' ? t.donations.copiedPhone : t.donations.copyPhone}</span>
             </button>
           </div>
         </div>
@@ -264,7 +262,7 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
                   : 'text-[#57534E] hover:text-[#1C1917]'
               }`}
             >
-              Lista de Produtos Aceitos ({products.filter((p) => p.active).length})
+              {t.donations.tabProducts} ({products.filter((p) => p.active).length})
             </button>
             <button
               type="button"
@@ -278,7 +276,7 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
               }`}
             >
               <ShoppingBag className="h-3.5 w-3.5 text-[#14532D]" aria-hidden="true" />
-              <span>Doações de Sacolões ({SACOLOES_GALLERY_ITEMS.length})</span>
+              <span>{t.donations.tabSacoloes} ({SACOLOES_GALLERY_ITEMS.length})</span>
             </button>
             <button
               type="button"
@@ -292,7 +290,7 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
               }`}
             >
               <Truck className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Agendar Coleta de Doações</span>
+              <span>{t.donations.tabPickup}</span>
             </button>
           </div>
 
@@ -309,7 +307,7 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
                       : 'text-[#57534E] hover:text-[#1C1917]'
                   }`}
                 >
-                  {cat}
+                  {cat === 'Todos' ? t.donations.allProductsFilter : cat}
                 </button>
               ))}
             </div>
@@ -326,11 +324,11 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
             <table className="w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-[#E2DDD3] bg-[#FBF9F5] text-xs uppercase tracking-wider text-[#78716C]">
-                  <th className="px-5 py-3.5 font-medium">Produto / Insumo</th>
-                  <th className="px-5 py-3.5 font-medium">Frente</th>
-                  <th className="px-5 py-3.5 font-medium">Prioridade</th>
-                  <th className="px-5 py-3.5 text-right font-medium">Recebido / Meta</th>
-                  <th className="px-5 py-3.5 text-right font-medium">Doar item</th>
+                  <th className="px-5 py-3.5 font-medium">{t.donations.thProduct}</th>
+                  <th className="px-5 py-3.5 font-medium">{t.donations.thCategory}</th>
+                  <th className="px-5 py-3.5 font-medium">{t.donations.thPriority}</th>
+                  <th className="px-5 py-3.5 text-right font-medium">{t.donations.thProgress}</th>
+                  <th className="px-5 py-3.5 text-right font-medium">{t.donations.thAction}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EFEBE3]">

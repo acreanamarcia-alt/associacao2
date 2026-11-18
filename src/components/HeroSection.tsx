@@ -1,11 +1,13 @@
-import { ArrowRight, BookOpen, Eye, Users } from 'lucide-react';
+import { ArrowRight, BookOpen, Eye, Users, Volume2 } from 'lucide-react';
 import { INSTITUTION_PROFILE, OFFICIAL_ASSETS } from '../data/institutionalData';
+import { useLanguage } from '../i18n/LanguageContext';
 import { DonateButton } from './DonateButton';
 import { PWAInstallButton } from './PWAInstallButton';
 import { WhatsAppButton } from './WhatsAppButton';
 
 interface HeroSectionProps {
   onOpenEbook: () => void;
+  onOpenAudioPdf: () => void;
   onJumpToVolunteer: () => void;
   onOpenDonate: () => void;
   totalVisits: number;
@@ -14,11 +16,14 @@ interface HeroSectionProps {
 
 export function HeroSection({
   onOpenEbook,
+  onOpenAudioPdf,
   onJumpToVolunteer,
   onOpenDonate,
   totalVisits,
   uniqueVisitors,
 }: HeroSectionProps) {
+  const { t } = useLanguage();
+
   return (
     <section id="inicio" className="border-b border-[#E2DDD3]">
       <div className="mx-auto max-w-[1200px] px-6 pt-12 pb-10 lg:pt-16 lg:pb-14">
@@ -34,7 +39,7 @@ export function HeroSection({
               </p>
 
               <h1 className="mt-4 font-serif text-[clamp(2.25rem,4vw,3.5rem)] leading-[1.08] font-semibold tracking-tight text-[#1C1917] [text-wrap:balance]">
-                Do sopão comunitário no Bairro Olaria à segurança alimentar em Plácido de Castro.
+                {t.hero.title}
               </h1>
 
               <figure className="mt-6 grid grid-cols-1 items-center gap-5 rounded-lg border border-[#D6CEBE] bg-white p-4 sm:grid-cols-12 sm:p-5">
@@ -48,34 +53,25 @@ export function HeroSection({
                 </div>
                 <figcaption className="space-y-2.5 sm:col-span-7">
                   <p className="text-[11px] font-medium uppercase tracking-widest text-[#14532D]">
-                    Presidência em Atividade · Cozinha Comunitária
+                    {t.hero.leadershipKicker}
                   </p>
                   <p className="font-serif text-sm leading-relaxed text-[#292524]">
-                    Em plena atividade, a presidenta da instituição,{' '}
-                    <strong className="font-semibold text-[#1C1917]">Antônia Missionária</strong>, e
-                    o vice-presidente,{' '}
-                    <strong className="font-semibold text-[#1C1917]">José Benedito</strong>,
-                    reafirmam diariamente o compromisso com o bem-estar social. Cada alimento
-                    preparado representa não apenas sustento, mas sobretudo um gesto concreto de
-                    acolhimento, dignidade e esperança para as famílias atendidas pela nossa
-                    comunidade.
+                    {t.hero.leadershipCaption1}
                   </p>
                   <p className="font-serif text-sm font-medium italic text-[#14532D]">
-                    Seguimos firmes na missão de servir com amor, união e solidariedade.
+                    {t.hero.leadershipCaption2}
                   </p>
                 </figcaption>
               </figure>
 
               <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#44403C]">
-                Organização da Sociedade Civil fundada em 26 de fevereiro de 2019 e reconhecida como
-                Entidade de Utilidade Pública Estadual pela{' '}
+                {t.hero.descriptionStart}{' '}
                 <span className="font-medium text-[#1C1917]">
                   {INSTITUTION_PROFILE.stateLawShort}
                 </span>
-                . Conhecida pela comunidade como{' '}
-                <span className="font-medium text-[#1C1917]">Projeto Sopão</span>, a instituição
-                mantém produção artesanal própria de sopas nutritivas, pães caseiros, bolos e kits
-                alimentares distribuídos gratuitamente às famílias placidianas.
+                {t.hero.descriptionMiddle}{' '}
+                <span className="font-medium text-[#1C1917]">Projeto Sopão</span>
+                {t.hero.descriptionEnd}
               </p>
             </div>
 
@@ -83,7 +79,7 @@ export function HeroSection({
               <DonateButton
                 onClick={onOpenDonate}
                 variant="primary"
-                label="Doar via PIX / Produtos"
+                label={t.hero.donateBtn}
                 showSecurityHint
               />
 
@@ -94,7 +90,7 @@ export function HeroSection({
                 onClick={onJumpToVolunteer}
                 className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md bg-[#14532D] px-5 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#0F3F22] whitespace-nowrap shrink-0"
               >
-                <span>Ver vagas de voluntariado</span>
+                <span>{t.hero.volunteerBtn}</span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
 
@@ -104,7 +100,16 @@ export function HeroSection({
                 className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-[#D6CEBE] bg-white px-4 py-2.5 text-sm font-medium text-[#1C1917] transition-colors duration-150 hover:bg-[#F5F1E8] whitespace-nowrap shrink-0"
               >
                 <BookOpen className="h-4 w-4 text-[#14532D]" aria-hidden="true" />
-                <span>E-book Oficial</span>
+                <span>{t.hero.ebookBtn}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenAudioPdf}
+                className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-[#14532D] bg-[#F0FDF4] px-4 py-2.5 text-sm font-semibold text-[#14532D] transition-colors duration-150 hover:bg-[#DCFCE7] whitespace-nowrap shrink-0"
+              >
+                <Volume2 className="h-4 w-4" aria-hidden="true" />
+                <span>{t.hero.audioPdfBtn}</span>
               </button>
 
               <PWAInstallButton variant="hero" />
@@ -118,11 +123,9 @@ export function HeroSection({
                   </div>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-widest text-white/80">
-                      Contador Oficial de Visitantes
+                      {t.hero.visitorKicker}
                     </p>
-                    <p className="text-xs text-white/90">
-                      Acessos registrados neste portal institucional
-                    </p>
+                    <p className="text-xs text-white/90">{t.hero.visitorSubtitle}</p>
                   </div>
                 </div>
 
@@ -132,7 +135,7 @@ export function HeroSection({
                       {totalVisits.toLocaleString('pt-BR')}
                     </p>
                     <p className="mt-1 text-[11px] uppercase tracking-wider text-white/75">
-                      Visitas totais
+                      {t.hero.totalVisits}
                     </p>
                   </div>
                   <div className="border-l border-white/25 pl-4 text-right">
@@ -141,7 +144,7 @@ export function HeroSection({
                       <span>{uniqueVisitors.toLocaleString('pt-BR')}</span>
                     </p>
                     <p className="mt-1 text-[11px] uppercase tracking-wider text-white/75">
-                      Visitantes únicos
+                      {t.hero.uniqueVisitors}
                     </p>
                   </div>
                 </div>
@@ -173,10 +176,10 @@ export function HeroSection({
 
               <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                 <p className="font-mono text-xs tracking-wider text-white/80">
-                  FIG. 1 · ARQUIVO DOCUMENTAL DA SEDE
+                  {t.hero.fig1Tag}
                 </p>
                 <p className="mt-1 font-serif text-lg font-medium leading-snug">
-                  Projeto Sopão Comunitário — Cozinha Solidária no Bairro Olaria
+                  {t.hero.fig1Caption}
                 </p>
               </div>
             </div>
@@ -186,15 +189,19 @@ export function HeroSection({
         <div className="mt-10 border-t border-[#E2DDD3] pt-6">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <div className="border-b border-[#E2DDD3] pb-4 sm:border-b-0 sm:border-r sm:pr-6 sm:pb-0">
-              <p className="text-xs uppercase tracking-widest text-[#78716C]">Fundação Formal</p>
+              <p className="text-xs uppercase tracking-widest text-[#78716C]">
+                {t.hero.specFoundedLabel}
+              </p>
               <p className="mt-1 font-mono text-base font-medium tabular-nums text-[#1C1917]">
                 {INSTITUTION_PROFILE.foundedShort}
               </p>
-              <p className="mt-0.5 text-xs text-[#57534E]">Bairro Olaria · Plácido de Castro</p>
+              <p className="mt-0.5 text-xs text-[#57534E]">{t.hero.specFoundedSub}</p>
             </div>
 
             <div className="border-b border-[#E2DDD3] pb-4 lg:border-b-0 lg:border-r lg:pr-6 lg:pb-0">
-              <p className="text-xs uppercase tracking-widest text-[#78716C]">Registro CNPJ / PIX</p>
+              <p className="text-xs uppercase tracking-widest text-[#78716C]">
+                {t.hero.specCnpjLabel}
+              </p>
               <p className="mt-1 font-mono text-base font-medium tabular-nums text-[#1C1917]">
                 {INSTITUTION_PROFILE.cnpj}
               </p>
@@ -202,15 +209,19 @@ export function HeroSection({
             </div>
 
             <div className="border-b border-[#E2DDD3] pb-4 sm:border-b-0 sm:border-r sm:pr-6 sm:pb-0">
-              <p className="text-xs uppercase tracking-widest text-[#78716C]">Utilidade Pública</p>
-              <p className="mt-1 font-mono text-base font-medium tabular-nums text-[#14532D]">
-                Lei nº 3.809/2021
+              <p className="text-xs uppercase tracking-widest text-[#78716C]">
+                {t.hero.specPublicLabel}
               </p>
-              <p className="mt-0.5 text-xs text-[#57534E]">Governo do Estado do Acre · DOE 24/11/21</p>
+              <p className="mt-1 font-mono text-base font-medium tabular-nums text-[#14532D]">
+                {t.hero.specPublicValue}
+              </p>
+              <p className="mt-0.5 text-xs text-[#57534E]">{t.hero.specPublicSub}</p>
             </div>
 
             <div>
-              <p className="text-xs uppercase tracking-widest text-[#78716C]">Fomento &amp; Controle</p>
+              <p className="text-xs uppercase tracking-widest text-[#78716C]">
+                {t.hero.specFomentoLabel}
+              </p>
               <p className="mt-1 font-mono text-base font-medium tabular-nums text-[#1C1917]">
                 R$ 100.000,00
               </p>

@@ -55,7 +55,7 @@ export interface InstitutionalChapter {
 export const OFFICIAL_ASSETS = {
   logo: '/assets/aistudio/IMG_ad5ccc9b-22cd-4a93-8ada-0735a5091c06_c37db6af.jpg',
   ebookPdf:
-    '/assets/aistudio/E-book_Hist_rico_-_Associa__o_Recanto_Social_Bom_Pastor__1__6c01c77d.pdf',
+    '/assets/aistudio/E-book_Hist_rico_-_Associa__o_Recanto_Social_Bom_Pastor__1__6c01c77d_6c01c77d.pdf',
   headquartersMapImage: '/src/assets/images/mapa_sede_placido_1794899018005.jpg',
   leadershipInAction: '/assets/aistudio/IMG-20261117-WA0037_b0fa6372.jpg',
 };

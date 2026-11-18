@@ -19,6 +19,7 @@ import {
   INSTITUTION_PROFILE,
   OFFICIAL_ASSETS,
 } from '../data/institutionalData';
+import { useLanguage } from '../i18n/LanguageContext';
 import { EditaisCollectorPanel } from './EditaisCollectorPanel';
 import { SimpleMarkdown } from './SimpleMarkdown';
 
@@ -99,6 +100,7 @@ export function CommunityIntelligenceSection({
   requestedImage,
   onClearRequestedImage,
 }: CommunityIntelligenceSectionProps) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<IntelligenceTab>('maps');
 
   // Maps Grounding state
@@ -347,21 +349,19 @@ export function CommunityIntelligenceSection({
         <div className="flex flex-col justify-between gap-6 border-b border-[#D6CEBE] pb-8 lg:flex-row lg:items-end">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-widest text-[#14532D]">
-              Central Territorial, Pesquisa &amp; Mídia Comunitária
+              {t.intel.kicker}
             </p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-[#1C1917] sm:text-4xl">
-              Localização no Google Maps, Pesquisa Pública e Estúdio de Imagens
+              {t.intel.title}
             </h2>
             <p className="mt-3 text-base leading-relaxed text-[#44403C]">
-              Consulte pontos de apoio e fornecedores em Plácido de Castro com dados atualizados do
-              Google Maps, pesquise editais e legislação na web ou crie e edite peças visuais para
-              as campanhas do Projeto Sopão.
+              {t.intel.subtitle}
             </p>
           </div>
 
           <div
             role="tablist"
-            aria-label="Ferramentas de localização, pesquisa e criação de imagens"
+            aria-label={t.intel.title}
             className="flex flex-wrap items-center gap-1 rounded-lg bg-[#E8E2D5] p-1"
           >
             <button
@@ -376,7 +376,7 @@ export function CommunityIntelligenceSection({
               }`}
             >
               <MapPin className="h-3.5 w-3.5 text-[#14532D]" aria-hidden="true" />
-              <span>Dados Google Maps</span>
+              <span>{t.intel.tabMaps}</span>
             </button>
 
             <button
@@ -391,7 +391,7 @@ export function CommunityIntelligenceSection({
               }`}
             >
               <Globe className="h-3.5 w-3.5 text-[#14532D]" aria-hidden="true" />
-              <span>Pesquisa Google</span>
+              <span>{t.intel.tabSearch}</span>
             </button>
 
             <button
@@ -406,7 +406,7 @@ export function CommunityIntelligenceSection({
               }`}
             >
               <Landmark className="h-3.5 w-3.5 text-[#14532D]" aria-hidden="true" />
-              <span>Editais TJAC &amp; CNAE</span>
+              <span>{t.intel.tabEditais}</span>
             </button>
 
             <button
@@ -421,7 +421,7 @@ export function CommunityIntelligenceSection({
               }`}
             >
               <ImagePlus className="h-3.5 w-3.5 text-[#9A3412]" aria-hidden="true" />
-              <span>Criar &amp; Editar Imagens</span>
+              <span>{t.intel.tabStudio}</span>
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { ArrowUpRight, ChevronDown, HeartHandshake, MessageCircle, Truck, Users 
 import { useMemo, useState } from 'react';
 import { PIX_INFO } from '../data/donationsStore';
 import { INSTITUTION_PROFILE } from '../data/institutionalData';
+import { useLanguage } from '../i18n/LanguageContext';
 
 type FaqCategory =
   | 'Todas'
@@ -86,13 +87,109 @@ const FAQ_ITEMS: FaqItem[] = [
 ];
 
 export function FaqSection({ onOpenDonate, onJumpToVolunteer }: FaqSectionProps) {
+  const { t, lang } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState<FaqCategory>('Todas');
   const [openId, setOpenId] = useState<string>('faq-1');
 
+  const localizedFaqItems = useMemo(() => {
+    if (lang === 'pt') return FAQ_ITEMS;
+    if (lang === 'en') {
+      return [
+        {
+          ...FAQ_ITEMS[0],
+          question: 'How does Projeto Sopão work and who is assisted by the association?',
+          answer: `${INSTITUTION_PROFILE.legalName} prepares and distributes nutritious meals (community soup), homemade bread, sliced cakes, and food kits with seasoned farofa free of charge. Assistance prioritizes vulnerable families, elders, children, and workers in Bairro Olaria, Centro, and rural areas of ${INSTITUTION_PROFILE.cityState}.`,
+        },
+        {
+          ...FAQ_ITEMS[1],
+          question: 'What are the preparation and delivery days, times, and location?',
+          answer: `Activities take place at our community headquarters (${INSTITUTION_PROFILE.fullAddress}). Solidarity bakery runs Mondays, Wednesdays, and Fridays (06:30–10:30); soup preparation happens Tuesdays and Thursdays (14:00–19:00); and urban/rural delivery routes run Saturdays (08:00–12:00) using the association vehicle.`,
+          actionLabel: 'View headquarters on Google Maps',
+        },
+        {
+          ...FAQ_ITEMS[2],
+          question: 'How can I donate via PIX or become a monthly donor?',
+          answer: `You can donate any amount via PIX using our two official keys: CNPJ ${PIX_INFO.pixKey} or Phone ${PIX_INFO.pixPhoneDisplay}. You can also pledge a recurring monthly gift on this portal and send receipts directly to WhatsApp ${INSTITUTION_PROFILE.phoneDisplay}.`,
+          actionLabel: 'Open PIX donation options',
+        },
+        {
+          ...FAQ_ITEMS[3],
+          question: 'Which food items can I donate and how do I schedule a pickup?',
+          answer: `We accept non-perishable staples (rice, beans, pasta, wheat flour, cassava flour, cooking oil, salt, spices), fresh vegetables, proteins, and sanitized disposable containers. Drop off at Bairro Olaria HQ or request free vehicle pickup through the portal.`,
+          actionLabel: 'Schedule food pickup',
+        },
+        {
+          ...FAQ_ITEMS[4],
+          question: 'How do I apply as a volunteer and is there any financial pay?',
+          answer: `Choose a work front in the Volunteer section and submit the form. Prior kitchen or bakery experience is not required—senior volunteers guide every step. All positions are strictly voluntary with no financial compensation.`,
+          actionLabel: 'View open volunteer roles',
+        },
+        {
+          ...FAQ_ITEMS[5],
+          question: 'How does the association ensure transparency and compliance?',
+          answer: `Founded on ${INSTITUTION_PROFILE.foundedAt} under CNPJ ${INSTITUTION_PROFILE.cnpj}, the organization holds State Public Utility status (${INSTITUTION_PROFILE.stateLaw}), active SEASDH registration (${INSTITUTION_PROFILE.fomento}), and Judiciary grant clearance (${INSTITUTION_PROFILE.judiciary}), maintaining continuous financial and community oversight.`,
+        },
+      ];
+    }
+    return [
+      {
+        ...FAQ_ITEMS[0],
+        question: '¿Cómo funciona el Projeto Sopão y a quién atiende la asociación?',
+        answer: `${INSTITUTION_PROFILE.legalName} prepara y distribuye gratuitamente comidas nutritivas (sopão comunitario), panes caseros, pasteles y kits alimentarios con farofa. La atención prioriza a familias en vulnerabilidad, adultos mayores, niños y trabajadores del Bairro Olaria, Centro y comunidades rurales de ${INSTITUTION_PROFILE.cityState}.`,
+      },
+      {
+        ...FAQ_ITEMS[1],
+        question: '¿Cuáles son los días, horarios y lugar de preparación y entrega?',
+        answer: `Las actividades se realizan en la sede comunitaria (${INSTITUTION_PROFILE.fullAddress}). La panadería funciona lunes, miércoles y viernes (06:30 a 10:30); el sopão se prepara martes y jueves (14:00 a 19:00); y las rutas de entrega urbana y rural se realizan los sábados (08:00 a 12:00).`,
+        actionLabel: 'Ver ubicación en Google Maps',
+      },
+      {
+        ...FAQ_ITEMS[2],
+        question: '¿Cómo puedo donar vía PIX o hacerme donante mensual?',
+        answer: `Puede contribuir con cualquier valor vía PIX usando nuestras dos claves oficiales: CNPJ ${PIX_INFO.pixKey} o Teléfono ${PIX_INFO.pixPhoneDisplay}. También puede registrar un aporte mensual en el portal y enviar el comprobante al WhatsApp ${INSTITUTION_PROFILE.phoneDisplay}.`,
+        actionLabel: 'Abrir opciones de donación PIX',
+      },
+      {
+        ...FAQ_ITEMS[3],
+        question: '¿Qué alimentos puedo donar y cómo programar el retiro a domicilio?',
+        answer: `Recibimos alimentos no perecederos (arroz, frijoles, pasta, harina de trigo, harina de yuca, aceite, sal, condimentos), verduras frescas, proteínas y envases desechables higiénicos. Puede entregar en la sede o solicitar retiro gratuito en nuestro portal.`,
+        actionLabel: 'Programar recolección de alimentos',
+      },
+      {
+        ...FAQ_ITEMS[4],
+        question: '¿Cómo inscribirme como voluntario y existe remuneración?',
+        answer: `Elija un área en la sección de Vacantes y complete el formulario. No se requiere experiencia previa en cocina o panadería; voluntarios veteranos orientan cada etapa. Todas las vacantes son estrictamente voluntarias y no remuneradas.`,
+        actionLabel: 'Ver áreas de voluntariado abiertas',
+      },
+      {
+        ...FAQ_ITEMS[5],
+        question: '¿Cómo garantiza la asociación la transparencia de las donaciones?',
+        answer: `Fundada el ${INSTITUTION_PROFILE.foundedAt} con CNPJ ${INSTITUTION_PROFILE.cnpj}, la entidad cuenta con Utilidad Pública Estatal (${INSTITUTION_PROFILE.stateLaw}), registro vigente en SEASDH (${INSTITUTION_PROFILE.fomento}) y habilitación ante el Poder Judicial (${INSTITUTION_PROFILE.judiciary}), con rendición de cuentas continua.`,
+      },
+    ];
+  }, [lang]);
+
+  const categoryLabel = (cat: FaqCategory) => {
+    if (cat === 'Todas') return t.faq.allCategory;
+    if (lang === 'en') {
+      if (cat === 'Funcionamento') return 'Operations';
+      if (cat === 'Como Colaborar') return 'How to Help';
+      if (cat === 'Voluntariado') return 'Volunteering';
+      if (cat === 'Transparência') return 'Transparency';
+    }
+    if (lang === 'es') {
+      if (cat === 'Funcionamento') return 'Funcionamiento';
+      if (cat === 'Como Colaborar') return 'Cómo Colaborar';
+      if (cat === 'Voluntariado') return 'Voluntariado';
+      if (cat === 'Transparência') return 'Transparencia';
+    }
+    return cat;
+  };
+
   const visibleItems = useMemo(() => {
-    if (selectedCategory === 'Todas') return FAQ_ITEMS;
-    return FAQ_ITEMS.filter((item) => item.category === selectedCategory);
-  }, [selectedCategory]);
+    if (selectedCategory === 'Todas') return localizedFaqItems;
+    return localizedFaqItems.filter((item) => item.category === selectedCategory);
+  }, [selectedCategory, localizedFaqItems]);
 
   const handleAction = (type: FaqItem['onActionType']) => {
     if (!type) return;
@@ -122,19 +219,18 @@ export function FaqSection({ onOpenDonate, onJumpToVolunteer }: FaqSectionProps)
           {/* Coluna esquerda: cabeçalho editorial e atalhos úteis */}
           <div className="lg:col-span-4">
             <p className="text-xs font-medium uppercase tracking-widest text-[#14532D]">
-              Dúvidas Comuns · Guia Comunitário
+              {t.faq.kicker}
             </p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-[#1C1917] sm:text-4xl [text-wrap:balance]">
-              Perguntas Frequentes
+              {t.faq.title}
             </h2>
             <p className="mt-3 text-base leading-relaxed text-[#44403C]">
-              Esclarecimentos diretos sobre os horários de produção, atendimento às famílias,
-              chaves PIX, agendamento de coletas e inscrição de voluntários.
+              {t.faq.subtitle}
             </p>
 
             <div className="mt-6 space-y-2.5 border-t border-[#D6CEBE] pt-6">
               <p className="text-xs font-semibold uppercase tracking-wider text-[#57534E]">
-                Ações rápidas para colaborar
+                {t.faq.quickActionsTitle}
               </p>
 
               <button
@@ -144,7 +240,7 @@ export function FaqSection({ onOpenDonate, onJumpToVolunteer }: FaqSectionProps)
               >
                 <span className="flex items-center gap-2">
                   <HeartHandshake className="h-4 w-4 text-[#14532D]" aria-hidden="true" />
-                  <span>Contribuir via PIX ou mensal</span>
+                  <span>{t.faq.quickPix}</span>
                 </span>
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
@@ -156,7 +252,7 @@ export function FaqSection({ onOpenDonate, onJumpToVolunteer }: FaqSectionProps)
               >
                 <span className="flex items-center gap-2">
                   <Truck className="h-4 w-4 text-[#14532D]" aria-hidden="true" />
-                  <span>Agendar coleta de alimentos</span>
+                  <span>{t.faq.quickPickup}</span>
                 </span>
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
@@ -168,7 +264,7 @@ export function FaqSection({ onOpenDonate, onJumpToVolunteer }: FaqSectionProps)
               >
                 <span className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-[#14532D]" aria-hidden="true" />
-                  <span>Ver vagas de voluntariado</span>
+                  <span>{t.faq.quickVolunteer}</span>
                 </span>
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
@@ -181,7 +277,7 @@ export function FaqSection({ onOpenDonate, onJumpToVolunteer }: FaqSectionProps)
               >
                 <span className="flex items-center gap-2">
                   <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                  <span>Falar pelo WhatsApp {INSTITUTION_PROFILE.phoneDisplay}</span>
+                  <span>{t.faq.quickWhatsapp} {INSTITUTION_PROFILE.phoneDisplay}</span>
                 </span>
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
               </a>
@@ -192,7 +288,7 @@ export function FaqSection({ onOpenDonate, onJumpToVolunteer }: FaqSectionProps)
           <div className="lg:col-span-8">
             <div
               role="tablist"
-              aria-label="Filtrar perguntas frequentes por assunto"
+              aria-label={t.faq.title}
               className="mb-5 flex flex-wrap items-center gap-1 rounded-lg bg-[#E8E2D5] p-1"
             >
               {FAQ_CATEGORIES.map((category) => {
@@ -207,8 +303,8 @@ export function FaqSection({ onOpenDonate, onJumpToVolunteer }: FaqSectionProps)
                       setSelectedCategory(category);
                       const firstMatch =
                         category === 'Todas'
-                          ? FAQ_ITEMS[0]
-                          : FAQ_ITEMS.find((item) => item.category === category);
+                          ? localizedFaqItems[0]
+                          : localizedFaqItems.find((item) => item.category === category);
                       if (firstMatch) {
                         setOpenId(firstMatch.id);
                       }
@@ -219,7 +315,7 @@ export function FaqSection({ onOpenDonate, onJumpToVolunteer }: FaqSectionProps)
                         : 'text-[#57534E] hover:text-[#1C1917]'
                     }`}
                   >
-                    {category}
+                    {categoryLabel(category)}
                   </button>
                 );
               })}
@@ -243,7 +339,7 @@ export function FaqSection({ onOpenDonate, onJumpToVolunteer }: FaqSectionProps)
                       >
                         <div className="min-w-0">
                           <p className="text-[11px] font-medium text-[#78716C] tabular-nums">
-                            0{idx + 1} · {item.category}
+                            0{idx + 1} · {categoryLabel(item.category)}
                           </p>
                           <p className="mt-0.5 font-serif text-base font-semibold text-[#1C1917] sm:text-lg">
                             {item.question}

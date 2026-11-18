@@ -1,5 +1,6 @@
 import { buildAssociationWhatsappUrl } from '../data/donationsStore';
 import { INSTITUTION_PROFILE } from '../data/institutionalData';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface WhatsAppButtonProps {
   variant?: 'inline' | 'floating';
@@ -36,6 +37,7 @@ export function WhatsAppButton({
   customMessage,
   className = '',
 }: WhatsAppButtonProps) {
+  const { t } = useLanguage();
   const href = buildAssociationWhatsappUrl(customMessage);
 
   if (variant === 'floating') {
@@ -44,12 +46,12 @@ export function WhatsAppButton({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={`Fale direto pelo WhatsApp da ${INSTITUTION_PROFILE.legalName}: ${INSTITUTION_PROFILE.phoneDisplay}`}
+        aria-label={`${t.whatsapp.inlineTitle} (${INSTITUTION_PROFILE.phoneDisplay})`}
         className={`group fixed right-4 bottom-4 z-40 inline-flex items-center gap-2 rounded-full bg-[#25D366] py-1.5 pr-2 pl-4 text-white shadow-lg ring-2 ring-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#1EBE57] hover:shadow-xl sm:right-6 sm:bottom-6 ${className}`}
       >
         <span className="text-left leading-tight">
-          <span className="block text-xs font-bold tracking-tight">Fale direto</span>
-          <span className="block text-xs font-bold tracking-tight">pelo WhatsApp</span>
+          <span className="block text-xs font-bold tracking-tight">{t.whatsapp.floatingLine1}</span>
+          <span className="block text-xs font-bold tracking-tight">{t.whatsapp.floatingLine2}</span>
         </span>
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#25D366] transition-transform duration-200 group-hover:scale-105">
           <WhatsAppSpeechBubbleIcon className="h-9 w-9" />
@@ -63,12 +65,12 @@ export function WhatsAppButton({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`Fale direto pelo WhatsApp: ${INSTITUTION_PROFILE.phoneDisplay}`}
+      aria-label={`${t.whatsapp.inlineTitle}: ${INSTITUTION_PROFILE.phoneDisplay}`}
       className={`group inline-flex min-h-[48px] items-center gap-2.5 rounded-full bg-[#25D366] py-1.5 pr-2 pl-5 text-white shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#1EBE57] hover:shadow-lg whitespace-nowrap shrink-0 ${className}`}
     >
       <span className="text-left leading-tight">
         <span className="block text-xs font-bold tracking-tight sm:text-[13px]">
-          Fale direto pelo WhatsApp
+          {t.whatsapp.inlineTitle}
         </span>
         <span className="block font-mono text-[10px] font-medium text-white/95 tabular-nums">
           {INSTITUTION_PROFILE.phoneDisplay}

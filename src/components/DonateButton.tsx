@@ -1,4 +1,5 @@
 import { HeartHandshake, ShieldCheck } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface DonateButtonProps {
   onClick: () => void;
@@ -11,10 +12,12 @@ interface DonateButtonProps {
 export function DonateButton({
   onClick,
   variant = 'primary',
-  label = 'Doar agora (PIX / Produtos)',
+  label,
   showSecurityHint = false,
   className = '',
 }: DonateButtonProps) {
+  const { t } = useLanguage();
+  const resolvedLabel = label ?? t.donations.donateNow;
   const variantClasses = {
     primary: 'bg-[#9A3412] text-white hover:bg-[#7C2D12] border border-transparent',
     accent: 'bg-[#14532D] text-white hover:bg-[#0F3F22] border border-transparent',
@@ -32,7 +35,7 @@ export function DonateButton({
       ) : (
         <HeartHandshake className="h-4 w-4 shrink-0" aria-hidden="true" />
       )}
-      <span>{label}</span>
+      <span>{resolvedLabel}</span>
     </button>
   );
 }

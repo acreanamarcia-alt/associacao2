@@ -6,6 +6,7 @@ import {
   VolunteerRole,
 } from '../data/institutionalData';
 import { useVolunteersStore } from '../data/volunteersStore';
+import { useLanguage } from '../i18n/LanguageContext';
 import { InstitutionalFooterStrip } from './InstitutionalFooterStrip';
 
 const CATEGORIES: Array<'Todas' | VolunteerRole['category']> = [
@@ -24,6 +25,7 @@ const SHIFTS: Array<'Todos' | VolunteerRole['shift']> = [
 ];
 
 export function VolunteerHub() {
+  const { t, pick } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState<'Todas' | VolunteerRole['category']>(
     'Todas'
   );
@@ -136,26 +138,24 @@ export function VolunteerHub() {
         <div className="flex flex-col justify-between gap-6 border-b border-[#E2DDD3] pb-8 lg:flex-row lg:items-end">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-widest text-[#14532D]">
-              Central de Voluntariado · Bairro Olaria, Plácido de Castro - AC
+              {t.volunteer.kicker}
             </p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-[#1C1917] sm:text-4xl">
-              Vagas abertas no Projeto Sopão
+              {t.volunteer.title}
             </h2>
             <p className="mt-3 text-base leading-relaxed text-[#44403C]">
-              Inspirada no modelo de engajamento comunitário para ONGs, nossa central organiza as
-              frentes reais de trabalho voluntário na cozinha solidária, panificação, montagem de
-              kits, rotas de entrega e governança documental.
+              {t.volunteer.subtitle}
             </p>
             <p className="mt-3 inline-block rounded border border-[#DC2626]/30 bg-[#FEF2F2] px-3 py-1.5 text-[11px] font-semibold tracking-tight text-[#DC2626]">
-              Aviso importante: todas as vagas são expressamente voluntári(a)s sem qualquer tipo remuneração.
+              {t.volunteer.unpaidNotice}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
             <div className="text-left sm:text-right">
-              <p className="text-xs uppercase tracking-widest text-[#78716C]">Vagas disponíveis</p>
+              <p className="text-xs uppercase tracking-widest text-[#78716C]">{t.volunteer.openSpotsLabel}</p>
               <p className="font-mono text-2xl font-medium tabular-nums text-[#1C1917]">
-                {totalOpenSpots} posições
+                {totalOpenSpots} {t.volunteer.positionsUnit}
               </p>
             </div>
 
@@ -165,7 +165,7 @@ export function VolunteerHub() {
                 onClick={() => setShowMyApplications(true)}
                 className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-[#14532D] bg-white px-4 py-2 text-xs font-semibold text-[#14532D] transition-colors hover:bg-[#14532D] hover:text-white whitespace-nowrap shrink-0"
               >
-                <span>Minhas inscrições</span>
+                <span>{t.volunteer.myApplicationsBtn}</span>
                 <span className="font-mono tabular-nums">({applications.length})</span>
               </button>
             )}
@@ -194,7 +194,7 @@ export function VolunteerHub() {
                       : 'text-[#57534E] hover:text-[#1C1917]'
                   }`}
                 >
-                  {category}
+                  {category === 'Todas' ? t.volunteer.allCategories : category}
                 </button>
               );
             })}
@@ -202,7 +202,7 @@ export function VolunteerHub() {
 
           <div className="flex flex-wrap items-center gap-3">
             <label className="sr-only" htmlFor="shift-filter">
-              Filtrar por turno
+              {t.volunteer.allShifts}
             </label>
             <select
               id="shift-filter"
@@ -212,7 +212,7 @@ export function VolunteerHub() {
             >
               {SHIFTS.map((shift) => (
                 <option key={shift} value={shift}>
-                  {shift === 'Todos' ? 'Todos os turnos' : `Turno: ${shift}`}
+                  {shift === 'Todos' ? t.volunteer.allShifts : `${t.volunteer.shiftPrefix}: ${shift}`}
                 </option>
               ))}
             </select>
@@ -226,8 +226,8 @@ export function VolunteerHub() {
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar atividade ou turno..."
-                aria-label="Buscar vagas de voluntariado"
+                placeholder={t.volunteer.searchPlaceholder}
+                aria-label={t.volunteer.searchPlaceholder}
                 className="min-h-[42px] w-full rounded-md border border-[#D6CEBE] bg-white py-2 pr-3 pl-9 text-xs text-[#1C1917] placeholder:text-[#78716C]"
               />
             </div>
@@ -238,11 +238,10 @@ export function VolunteerHub() {
         {filteredRoles.length === 0 ? (
           <div className="mt-10 rounded-lg border border-[#E2DDD3] bg-white p-10 text-center">
             <p className="font-serif text-xl font-medium text-[#1C1917]">
-              Nenhuma vaga encontrada para esse filtro
+              {t.volunteer.emptyTitle}
             </p>
             <p className="mt-2 text-sm text-[#57534E]">
-              Ajuste a área de atuação, o turno ou limpe a busca para visualizar todas as frentes do
-              Projeto Sopão.
+              {t.volunteer.emptyDesc}
             </p>
             <button
               type="button"
@@ -253,7 +252,7 @@ export function VolunteerHub() {
               }}
               className="mt-5 inline-flex min-h-[40px] cursor-pointer items-center rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white"
             >
-              Limpar filtros
+              {t.volunteer.clearFilters}
             </button>
           </div>
         ) : (
@@ -276,7 +275,7 @@ export function VolunteerHub() {
                       <span aria-hidden="true">·</span>
                       <span>{role.modality}</span>
                       <span aria-hidden="true">·</span>
-                      <span>Turno: {role.shift}</span>
+                      <span>{t.volunteer.shiftPrefix}: {role.shift}</span>
                     </div>
 
                     <h3 className="mt-2.5 font-serif text-xl font-semibold text-[#1C1917]">
@@ -287,17 +286,17 @@ export function VolunteerHub() {
 
                     <dl className="mt-5 space-y-1.5 border-t border-[#EFEBE3] pt-4 text-xs text-[#57534E]">
                       <div className="flex justify-between gap-4">
-                        <dt className="text-[#78716C]">Horário</dt>
+                        <dt className="text-[#78716C]">{t.volunteer.scheduleLabel}</dt>
                         <dd className="text-right font-medium text-[#1C1917]">{role.schedule}</dd>
                       </div>
                       <div className="flex justify-between gap-4">
-                        <dt className="text-[#78716C]">Local</dt>
+                        <dt className="text-[#78716C]">{t.volunteer.locationLabel}</dt>
                         <dd className="text-right text-[#1C1917]">{role.location}</dd>
                       </div>
                       <div className="flex justify-between gap-4">
-                        <dt className="text-[#78716C]">Vagas abertas</dt>
+                        <dt className="text-[#78716C]">{t.volunteer.openSpotsLabel}</dt>
                         <dd className="text-right font-mono tabular-nums font-medium text-[#1C1917]">
-                          {remaining} de {role.spotsTotal}
+                          {remaining} {t.volunteer.ofSpots} {role.spotsTotal}
                         </dd>
                       </div>
                     </dl>
@@ -307,10 +306,16 @@ export function VolunteerHub() {
                     {userApplication ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#14532D]">
                         <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                        <span>Inscrição registrada</span>
+                        <span>{t.volunteer.alreadyApplied}</span>
                       </span>
                     ) : (
-                      <span className="text-xs text-[#78716C]">Início imediato mediante contato</span>
+                      <span className="text-xs text-[#78716C]">
+                        {pick({
+                          pt: 'Início imediato mediante contato',
+                          en: 'Immediate start upon contact',
+                          es: 'Inicio inmediato tras contacto',
+                        })}
+                      </span>
                     )}
 
                     <button
@@ -318,7 +323,7 @@ export function VolunteerHub() {
                       onClick={() => openRoleDrawer(role)}
                       className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0F3F22] whitespace-nowrap shrink-0"
                     >
-                      <span>{userApplication ? 'Ver detalhes' : 'Quero participar'}</span>
+                      <span>{userApplication ? t.volunteer.viewDetails : t.volunteer.applyBtn}</span>
                       <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
                   </div>
@@ -366,22 +371,22 @@ export function VolunteerHub() {
 
               <dl className="divide-y divide-[#E2DDD3] rounded-lg border border-[#E2DDD3] bg-white px-4 text-xs">
                 <div className="flex justify-between gap-4 py-3">
-                  <dt className="text-[#78716C]">Horário previsto</dt>
+                  <dt className="text-[#78716C]">{t.volunteer.scheduleLabel}</dt>
                   <dd className="text-right font-medium text-[#1C1917]">{activeRole.schedule}</dd>
                 </div>
                 <div className="flex justify-between gap-4 py-3">
-                  <dt className="text-[#78716C]">Endereço / Área</dt>
+                  <dt className="text-[#78716C]">{t.volunteer.locationLabel}</dt>
                   <dd className="text-right text-[#1C1917]">{activeRole.location}</dd>
                 </div>
                 <div className="flex justify-between gap-4 py-3">
-                  <dt className="text-[#78716C]">Impacto direto</dt>
+                  <dt className="text-[#78716C]">{t.volunteer.impactTitle}</dt>
                   <dd className="text-right text-[#44403C]">{activeRole.impactNote}</dd>
                 </div>
               </dl>
 
               <div>
                 <h4 className="font-serif text-base font-semibold text-[#1C1917]">
-                  Atividades da vaga
+                  {t.volunteer.activitiesTitle}
                 </h4>
                 <ul className="mt-2.5 list-disc space-y-1.5 pl-5 text-sm text-[#44403C]">
                   {activeRole.activities.map((item) => (
@@ -392,7 +397,7 @@ export function VolunteerHub() {
 
               <div>
                 <h4 className="font-serif text-base font-semibold text-[#1C1917]">
-                  Orientações e requisitos
+                  {t.volunteer.requirementsTitle}
                 </h4>
                 <ul className="mt-2.5 list-disc space-y-1.5 pl-5 text-sm text-[#44403C]">
                   {activeRole.requirements.map((item) => (
@@ -411,12 +416,14 @@ export function VolunteerHub() {
                       />
                       <div>
                         <p className="font-serif text-lg font-semibold text-[#1C1917]">
-                          Candidatura registrada com sucesso
+                          {t.volunteer.submittedSuccess}
                         </p>
                         <p className="mt-1 text-sm text-[#44403C]">
-                          Seus dados ficaram salvos neste navegador. Para confirmar sua escala com a
-                          coordenação do Bairro Olaria, envie sua apresentação diretamente pelo
-                          WhatsApp institucional.
+                          {pick({
+                            pt: 'Seus dados ficaram salvos neste navegador. Para confirmar sua escala com a coordenação do Bairro Olaria, envie sua apresentação diretamente pelo WhatsApp institucional.',
+                            en: 'Your details are saved in this browser. To confirm your shift with our Bairro Olaria coordinators, message us directly on the institutional WhatsApp.',
+                            es: 'Sus datos quedaron guardados en este navegador. Para confirmar su turno con la coordinación del Bairro Olaria, envíe su presentación por nuestro WhatsApp institucional.',
+                          })}
                         </p>
                         <div className="mt-4 flex flex-wrap gap-3">
                           <a
@@ -428,7 +435,7 @@ export function VolunteerHub() {
                             rel="noopener noreferrer"
                             className="inline-flex min-h-[42px] items-center gap-2 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
                           >
-                            <span>Confirmar pelo WhatsApp ({INSTITUTION_PROFILE.phoneDisplay})</span>
+                            <span>{t.volunteer.whatsappDirect} ({INSTITUTION_PROFILE.phoneDisplay})</span>
                             <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                           </a>
                           <button
@@ -440,7 +447,7 @@ export function VolunteerHub() {
                             }}
                             className="inline-flex min-h-[42px] cursor-pointer items-center rounded-md border border-[#D6CEBE] px-4 py-2 text-xs font-medium text-[#57534E] hover:bg-[#F5F1E8]"
                           >
-                            Cancelar inscrição
+                            {t.volunteer.removeApplication}
                           </button>
                         </div>
                       </div>
@@ -450,10 +457,10 @@ export function VolunteerHub() {
                   <form onSubmit={handleSubmitApplication} className="space-y-4">
                     <div>
                       <h4 className="font-serif text-lg font-semibold text-[#1C1917]">
-                        Inscrever-se nesta vaga
+                        {t.volunteer.formTitle}
                       </h4>
                       <p className="mt-2 rounded border border-[#DC2626]/35 bg-[#FEF2F2] px-3 py-2 text-[11px] font-semibold leading-snug text-[#DC2626]">
-                        Todas as vagas são expressamente voluntári(a)s sem qualquer tipo remuneração.
+                        {t.volunteer.unpaidNotice}
                       </p>
                     </div>
 
@@ -462,7 +469,7 @@ export function VolunteerHub() {
                         htmlFor="volunteer-name"
                         className="block text-xs font-medium text-[#44403C]"
                       >
-                        Nome completo
+                        {t.volunteer.fullNameLabel}
                       </label>
                       <input
                         id="volunteer-name"
@@ -480,7 +487,7 @@ export function VolunteerHub() {
                         htmlFor="volunteer-phone"
                         className="block text-xs font-medium text-[#44403C]"
                       >
-                        Telefone / WhatsApp com DDD
+                        {t.volunteer.phoneLabel}
                       </label>
                       <input
                         id="volunteer-phone"
@@ -498,7 +505,7 @@ export function VolunteerHub() {
                         htmlFor="volunteer-availability"
                         className="block text-xs font-medium text-[#44403C]"
                       >
-                        Disponibilidade de dias e horários
+                        {t.volunteer.availabilityLabel}
                       </label>
                       <input
                         id="volunteer-availability"
@@ -514,14 +521,14 @@ export function VolunteerHub() {
                         htmlFor="volunteer-notes"
                         className="block text-xs font-medium text-[#44403C]"
                       >
-                        Experiência ou observação (opcional)
+                        {t.volunteer.notesLabel}
                       </label>
                       <textarea
                         id="volunteer-notes"
                         rows={3}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Conte brevemente como gostaria de contribuir..."
+                        placeholder="..."
                         className="mt-1.5 w-full rounded-md border border-[#D6CEBE] bg-white px-3 py-2 text-sm text-[#1C1917]"
                       />
                     </div>
@@ -537,7 +544,7 @@ export function VolunteerHub() {
                         type="submit"
                         className="inline-flex min-h-[44px] cursor-pointer items-center justify-center rounded-md bg-[#14532D] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0F3F22]"
                       >
-                        Registrar inscrição
+                        {t.volunteer.submitApplication}
                       </button>
 
                       <a
@@ -546,7 +553,7 @@ export function VolunteerHub() {
                         rel="noopener noreferrer"
                         className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-[#D6CEBE] bg-white px-4 py-2.5 text-xs font-medium text-[#1C1917] hover:bg-[#F5F1E8]"
                       >
-                        <span>Falar direto no WhatsApp</span>
+                        <span>{t.volunteer.whatsappDirect}</span>
                         <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                     </div>
@@ -578,16 +585,16 @@ export function VolunteerHub() {
             <div className="flex items-center justify-between border-b border-[#E2DDD3] bg-white px-6 py-4">
               <div>
                 <p className="text-xs uppercase tracking-widest text-[#78716C]">
-                  Registro local de voluntariado
+                  {t.volunteer.kicker}
                 </p>
                 <h3 id="my-apps-title" className="font-serif text-xl font-semibold text-[#1C1917]">
-                  Minhas inscrições ({applications.length})
+                  {t.volunteer.myApplicationsTitle} ({applications.length})
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowMyApplications(false)}
-                aria-label="Fechar minhas inscrições"
+                aria-label={t.volunteer.close}
                 className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-[#E2DDD3] text-[#1C1917]"
               >
                 <X className="h-5 w-5" />
@@ -606,13 +613,13 @@ export function VolunteerHub() {
                         {app.roleTitle}
                       </p>
                       <p className="text-xs text-[#57534E]">
-                        Inscrito em {app.createdAt} · {app.availability}
+                        {app.createdAt} · {app.availability}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleCancelApplication(app.id)}
-                      aria-label={`Remover inscrição em ${app.roleTitle}`}
+                      aria-label={t.volunteer.removeApplication}
                       className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-[#E2DDD3] text-[#78716C] hover:text-[#9A3412]"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -620,8 +627,7 @@ export function VolunteerHub() {
                   </div>
 
                   <p className="text-xs text-[#44403C]">
-                    Voluntário: <span className="font-medium text-[#1C1917]">{app.fullName}</span> (
-                    {app.phone})
+                    <span className="font-medium text-[#1C1917]">{app.fullName}</span> ({app.phone})
                   </p>
 
                   <a
@@ -630,7 +636,7 @@ export function VolunteerHub() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#14532D] hover:underline underline-offset-4"
                   >
-                    <span>Enviar confirmação pelo WhatsApp</span>
+                    <span>{t.volunteer.whatsappDirect}</span>
                     <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </a>
                 </div>

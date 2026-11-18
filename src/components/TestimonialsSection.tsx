@@ -4,6 +4,7 @@ import {
   TestimonialCategory,
   useTestimonialsStore,
 } from '../data/testimonialsStore';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const CATEGORIES: Array<'Todos' | TestimonialCategory> = [
   'Todos',
@@ -28,6 +29,7 @@ function partsLengthOk(word: string): boolean {
 }
 
 export function TestimonialsSection() {
+  const { t } = useLanguage();
   const { testimonials, addTestimonial, removeTestimonial } = useTestimonialsStore();
   const [selectedCategory, setSelectedCategory] = useState<'Todos' | TestimonialCategory>('Todos');
   const [formOpen, setFormOpen] = useState(false);
@@ -80,7 +82,7 @@ export function TestimonialsSection() {
     setImpactSummary('');
     setFormOpen(false);
     setSelectedCategory('Todos');
-    setSubmitNotice('Obrigado por compartilhar seu depoimento com a comunidade.');
+    setSubmitNotice(t.testimonials.thanksNotice);
   };
 
   return (
@@ -90,22 +92,20 @@ export function TestimonialsSection() {
         <div className="flex flex-col justify-between gap-6 border-b border-[#E2DDD3] pb-8 lg:flex-row lg:items-end">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-widest text-[#14532D]">
-              Vozes da Comunidade · Plácido de Castro, AC
+              {t.testimonials.kicker}
             </p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-[#1C1917] sm:text-4xl [text-wrap:balance]">
-              Depoimentos de quem recebe o Projeto Sopão
+              {t.testimonials.title}
             </h2>
             <p className="mt-3 text-base leading-relaxed text-[#44403C]">
-              Relatos diretos de mães de família, idosos e trabalhadores atendidos no Bairro
-              Olaria e nos ramais da zona rural pelo sopão comunitário, panificação solidária e
-              entregas semanais.
+              {t.testimonials.subtitle}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <div
               role="tablist"
-              aria-label="Filtrar depoimentos por frente de atendimento"
+              aria-label={t.testimonials.categoryLabel}
               className="flex flex-wrap items-center gap-1 rounded-lg bg-[#F4F0E8] p-1"
             >
               {CATEGORIES.map((cat) => {
@@ -123,7 +123,7 @@ export function TestimonialsSection() {
                         : 'text-[#57534E] hover:text-[#1C1917]'
                     }`}
                   >
-                    {cat}
+                    {cat === 'Todos' ? t.testimonials.allCategory : cat}
                   </button>
                 );
               })}
@@ -141,12 +141,12 @@ export function TestimonialsSection() {
               {formOpen ? (
                 <>
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Fechar formulário</span>
+                  <span>{t.testimonials.closeFormBtn}</span>
                 </>
               ) : (
                 <>
                   <MessageSquarePlus className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Enviar depoimento</span>
+                  <span>{t.testimonials.sendBtn}</span>
                 </>
               )}
             </button>
@@ -173,11 +173,10 @@ export function TestimonialsSection() {
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#E2DDD3] pb-4">
               <div>
                 <h3 className="font-serif text-xl font-semibold text-[#1C1917]">
-                  Compartilhar experiência com o Projeto Sopão
+                  {t.testimonials.formTitle}
                 </h3>
                 <p className="mt-1 text-xs text-[#57534E]">
-                  Conte como o sopão comunitário, os pães ou as entregas apoiaram sua família ou
-                  comunidade.
+                  {t.testimonials.formSubtitle}
                 </p>
               </div>
             </div>
@@ -197,7 +196,7 @@ export function TestimonialsSection() {
                   htmlFor="dep-name"
                   className="block text-xs font-semibold text-[#1C1917]"
                 >
-                  Nome completo *
+                  {t.testimonials.nameLabel}
                 </label>
                 <input
                   id="dep-name"
@@ -215,7 +214,7 @@ export function TestimonialsSection() {
                   htmlFor="dep-role"
                   className="block text-xs font-semibold text-[#1C1917]"
                 >
-                  Vínculo ou situação familiar
+                  {t.testimonials.roleLabel}
                 </label>
                 <input
                   id="dep-role"
@@ -232,7 +231,7 @@ export function TestimonialsSection() {
                   htmlFor="dep-neighborhood"
                   className="block text-xs font-semibold text-[#1C1917]"
                 >
-                  Bairro ou comunidade
+                  {t.testimonials.neighborhoodLabel}
                 </label>
                 <input
                   id="dep-neighborhood"
@@ -249,7 +248,7 @@ export function TestimonialsSection() {
                   htmlFor="dep-category"
                   className="block text-xs font-semibold text-[#1C1917]"
                 >
-                  Frente de atendimento
+                  {t.testimonials.categoryLabel}
                 </label>
                 <select
                   id="dep-category"
@@ -270,7 +269,7 @@ export function TestimonialsSection() {
                   htmlFor="dep-quote"
                   className="block text-xs font-semibold text-[#1C1917]"
                 >
-                  Seu depoimento *
+                  {t.testimonials.quoteLabel}
                 </label>
                 <textarea
                   id="dep-quote"
@@ -278,7 +277,7 @@ export function TestimonialsSection() {
                   required
                   value={quote}
                   onChange={(e) => setQuote(e.target.value)}
-                  placeholder="Descreva como o acolhimento e os alimentos do Projeto Sopão ajudaram sua família..."
+                  placeholder="..."
                   className="mt-1.5 w-full rounded-md border border-[#D6CEBE] bg-white p-3 text-sm text-[#1C1917] focus:border-[#14532D] focus:outline-none"
                 />
               </div>
@@ -288,21 +287,21 @@ export function TestimonialsSection() {
                   htmlFor="dep-impact"
                   className="block text-xs font-semibold text-[#1C1917]"
                 >
-                  Resumo do apoio recebido (opcional)
+                  {t.testimonials.impactLabel}
                 </label>
                 <input
                   id="dep-impact"
                   type="text"
                   value={impactSummary}
                   onChange={(e) => setImpactSummary(e.target.value)}
-                  placeholder="Ex.: Refeição garantida para 4 pessoas"
+                  placeholder="..."
                   className="mt-1.5 min-h-[40px] w-full rounded-md border border-[#D6CEBE] bg-white px-3 text-sm text-[#1C1917] focus:border-[#14532D] focus:outline-none"
                 />
                 <button
                   type="submit"
                   className="mt-4 inline-flex min-h-[42px] w-full cursor-pointer items-center justify-center rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
                 >
-                  Publicar Depoimento
+                  {t.testimonials.submitBtn}
                 </button>
               </div>
             </div>
@@ -313,10 +312,10 @@ export function TestimonialsSection() {
         {!featuredTestimonial ? (
           <div className="mt-10 rounded-xl border border-[#E2DDD3] bg-[#FBF9F5] p-10 text-center">
             <p className="font-serif text-lg font-medium text-[#1C1917]">
-              Nenhum depoimento registrado nesta frente ainda.
+              {t.testimonials.emptyTitle}
             </p>
             <p className="mt-1 text-sm text-[#57534E]">
-              Selecione “Todos” ou envie o primeiro relato comunitário desta categoria.
+              {t.testimonials.emptySubtitle}
             </p>
           </div>
         ) : (
@@ -341,7 +340,7 @@ export function TestimonialsSection() {
                     className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-[#9A3412] hover:underline"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Remover relato</span>
+                    <span>{t.testimonials.removeLabel}</span>
                   </button>
                 )}
               </div>
@@ -375,7 +374,7 @@ export function TestimonialsSection() {
                     </div>
                   </div>
                   <p className="mt-4 text-xs leading-relaxed text-[#44403C]">
-                    <span className="font-semibold text-[#1C1917]">Impacto direto: </span>
+                    <span className="font-semibold text-[#1C1917]">{t.testimonials.directImpactPrefix} </span>
                     {featuredTestimonial.impactSummary}
                   </p>
                 </div>
@@ -441,7 +440,7 @@ export function TestimonialsSection() {
                       </div>
 
                       <p className="mt-3 text-xs text-[#44403C]">
-                        <span className="font-medium text-[#1C1917]">Apoio: </span>
+                        <span className="font-medium text-[#1C1917]">{t.testimonials.supportPrefix} </span>
                         {item.impactSummary}
                       </p>
                     </div>

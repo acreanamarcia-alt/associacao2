@@ -30,8 +30,10 @@ import {
 } from './data/adminAuthClient';
 import type { DocumentaryFigure } from './data/institutionalData';
 import { useVisitorStats } from './data/visitorStore';
+import { useLanguage } from './i18n/LanguageContext';
 
 export default function App() {
+  const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<'portal' | 'admin'>('portal');
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
@@ -41,6 +43,7 @@ export default function App() {
   const [portalAuthNotice, setPortalAuthNotice] = useState<string | null>(null);
 
   const [ebookOpen, setEbookOpen] = useState(false);
+  const [ebookMode, setEbookMode] = useState<'viewer' | 'audio'>('viewer');
   const [donateModalOpen, setDonateModalOpen] = useState(false);
   const [donateInitialTab, setDonateInitialTab] = useState<'pix' | 'monthly' | 'pickup'>('pix');
   const [requestedTab, setRequestedTab] = useState<IntelligenceTab | undefined>(undefined);
@@ -235,13 +238,13 @@ export default function App() {
                 onClick={() => setAccountModalOpen(true)}
                 className="cursor-pointer font-semibold underline underline-offset-2"
               >
-                Ver Minha Conta
+                {t.portalAuth.viewAccount}
               </button>
             </div>
             <button
               type="button"
               onClick={() => setPortalAuthNotice(null)}
-              aria-label="Fechar aviso"
+              aria-label={t.portalAuth.closeNotice}
               className="cursor-pointer rounded p-1 hover:bg-[#DCFCE7]"
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -252,7 +255,14 @@ export default function App() {
 
       <main>
         <HeroSection
-          onOpenEbook={() => setEbookOpen(true)}
+          onOpenEbook={() => {
+            setEbookMode('viewer');
+            setEbookOpen(true);
+          }}
+          onOpenAudioPdf={() => {
+            setEbookMode('audio');
+            setEbookOpen(true);
+          }}
           onJumpToVolunteer={handleJumpToVolunteer}
           onOpenDonate={() => openDonateModal('pix')}
           totalVisits={visitorStats.totalVisits}
@@ -274,11 +284,19 @@ export default function App() {
           requestedImage={requestedImage}
           onClearRequestedImage={clearRequestedImage}
         />
-        <HistoryAndTransparency onOpenEbook={() => setEbookOpen(true)} />
+        <HistoryAndTransparency
+          onOpenEbook={() => {
+            setEbookMode('viewer');
+            setEbookOpen(true);
+          }}
+        />
       </main>
 
       <Footer
-        onOpenEbook={() => setEbookOpen(true)}
+        onOpenEbook={() => {
+          setEbookMode('viewer');
+          setEbookOpen(true);
+        }}
         onOpenAdmin={handleOpenAdmin}
       />
 
@@ -291,7 +309,11 @@ export default function App() {
         onOpenAdmin={() => setViewMode('admin')}
       />
 
-      <EbookModal isOpen={ebookOpen} onClose={() => setEbookOpen(false)} />
+      <EbookModal
+        isOpen={ebookOpen}
+        initialMode={ebookMode}
+        onClose={() => setEbookOpen(false)}
+      />
 
       <DonationModal
         isOpen={donateModalOpen}

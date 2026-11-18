@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpen, MapPin } from 'lucide-react';
+import { ArrowUpRight, BookOpen, MapPin, Volume2 } from 'lucide-react';
 import { useState } from 'react';
 import {
   INSTITUTIONAL_CHAPTERS,
@@ -7,6 +7,8 @@ import {
   OFFICIAL_ASSETS,
   TIMELINE_EVENTS,
 } from '../data/institutionalData';
+import { useLanguage } from '../i18n/LanguageContext';
+import { PdfAudioReader } from './PdfAudioReader';
 
 interface HistoryAndTransparencyProps {
   onOpenEbook: () => void;
@@ -14,9 +16,17 @@ interface HistoryAndTransparencyProps {
 
 export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyProps) {
   const [activeChapterId, setActiveChapterId] = useState(INSTITUTIONAL_CHAPTERS[0].id);
+  const { t } = useLanguage();
 
   const activeChapter =
     INSTITUTIONAL_CHAPTERS.find((c) => c.id === activeChapterId) ?? INSTITUTIONAL_CHAPTERS[0];
+
+  const handleJumpToAudioReader = () => {
+    const el = document.getElementById('leitor-pdf-audio');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
     <>
@@ -25,10 +35,10 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
         <div className="mx-auto max-w-[1200px] px-6 py-16 lg:py-20">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-widest text-[#14532D]">
-              Documentário Institucional &amp; Histórico
+              {t.history.kicker}
             </p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-[#1C1917] sm:text-4xl">
-              Do Projeto Sopão Comunitário ao Reconhecimento e Fomento Estadual
+              {t.history.title}
             </h2>
           </div>
 
@@ -37,9 +47,13 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
             <aside className="lg:col-span-4">
               <div className="rounded-lg border border-[#E2DDD3] bg-white p-2">
                 <p className="px-3 py-2 text-xs font-medium uppercase tracking-widest text-[#78716C]">
-                  Índice de Capítulos
+                  {t.history.chaptersTitle}
                 </p>
-                <div role="tablist" aria-label="Capítulos da história institucional" className="space-y-1">
+                <div
+                  role="tablist"
+                  aria-label="Capítulos da história institucional"
+                  className="space-y-1"
+                >
                   {INSTITUTIONAL_CHAPTERS.map((chapter) => {
                     const isSelected = chapter.id === activeChapter.id;
                     return (
@@ -71,20 +85,29 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
 
               <div className="mt-5 rounded-lg border border-[#E2DDD3] bg-[#F4F0E8] p-5">
                 <p className="text-xs font-medium uppercase tracking-widest text-[#78716C]">
-                  Consulta integral
+                  {t.history.fullDocKicker}
                 </p>
                 <p className="mt-1.5 text-sm leading-relaxed text-[#44403C]">
-                  Acesse o documento completo em PDF com todas as 11 páginas diagramadas para
-                  consulta documental e transparência.
+                  {t.history.fullDocDesc}
                 </p>
-                <button
-                  type="button"
-                  onClick={onOpenEbook}
-                  className="mt-4 inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-md border border-[#14532D] bg-white px-4 py-2 text-xs font-semibold text-[#14532D] transition-colors hover:bg-[#14532D] hover:text-white"
-                >
-                  <BookOpen className="h-4 w-4" aria-hidden="true" />
-                  <span>Abrir E-book Oficial</span>
-                </button>
+                <div className="mt-4 flex flex-wrap gap-2.5">
+                  <button
+                    type="button"
+                    onClick={onOpenEbook}
+                    className="inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-md border border-[#14532D] bg-white px-4 py-2 text-xs font-semibold text-[#14532D] transition-colors hover:bg-[#14532D] hover:text-white whitespace-nowrap shrink-0"
+                  >
+                    <BookOpen className="h-4 w-4" aria-hidden="true" />
+                    <span>{t.history.openEbookBtn}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleJumpToAudioReader}
+                    className="inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0F3F22] whitespace-nowrap shrink-0"
+                  >
+                    <Volume2 className="h-4 w-4" aria-hidden="true" />
+                    <span>{t.history.listenPdfBtn}</span>
+                  </button>
+                </div>
               </div>
             </aside>
 
@@ -136,6 +159,11 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
               </div>
             </article>
           </div>
+
+          {/* Leitor de PDF em Áudio (Text-to-Speech com PDF.js + Web Speech API) */}
+          <div className="mt-12">
+            <PdfAudioReader />
+          </div>
         </div>
       </section>
 
@@ -146,10 +174,10 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
             {/* Timeline Ledger */}
             <div className="lg:col-span-7">
               <p className="text-xs font-medium uppercase tracking-widest text-[#14532D]">
-                Marcos Legais e Parcerias
+                {t.history.timelineKicker}
               </p>
               <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-[#1C1917]">
-                Linha do tempo cronológica (2019–2026)
+                {t.history.timelineTitle}
               </h2>
 
               <div className="mt-8 divide-y divide-[#E2DDD3] border-y border-[#E2DDD3]">
@@ -181,15 +209,12 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
             <div className="lg:col-span-5">
               <div className="rounded-lg border border-[#E2DDD3] bg-white p-6 sm:p-8">
                 <p className="text-xs font-medium uppercase tracking-widest text-[#78716C]">
-                  Identificação Institucional
+                  {t.history.specsKicker}
                 </p>
                 <h2 className="mt-2 font-serif text-2xl font-semibold text-[#1C1917]">
-                  Ficha Técnica Oficial
+                  {t.history.specsTitle}
                 </h2>
-                <p className="mt-2 text-sm text-[#57534E]">
-                  Dados oficiais registrados no e-book documental da Associação Recanto Social Bom
-                  Pastor.
-                </p>
+                <p className="mt-2 text-sm text-[#57534E]">{t.history.specsDesc}</p>
 
                 <dl className="mt-6 divide-y divide-[#E2DDD3] border-t border-[#E2DDD3] text-sm">
                   {INSTITUTION_SPECS.map((spec) => (
@@ -212,7 +237,7 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
                 <div className="mt-6 border-t border-[#E2DDD3] pt-5 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-medium uppercase tracking-widest text-[#14532D]">
-                      Localização da Sede
+                      {t.history.locationLabel}
                     </p>
                     <a
                       href={INSTITUTION_PROFILE.googleMapsUrl}
@@ -220,7 +245,7 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs font-semibold text-[#14532D] hover:underline underline-offset-4"
                     >
-                      <span>Abrir no Google Maps</span>
+                      <span>{t.history.openMaps}</span>
                       <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </a>
                   </div>
@@ -239,7 +264,7 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
                     />
                     <span className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-md bg-[#14532D] px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
                       <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Ver rota no Google Maps</span>
+                      <span>{t.history.viewRouteMaps}</span>
                     </span>
                   </a>
                 </div>

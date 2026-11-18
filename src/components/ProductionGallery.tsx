@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, ImagePlus, Maximize2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { DOCUMENTARY_FIGURES, DocumentaryFigure } from '../data/institutionalData';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ProductionGalleryProps {
   onEditInStudio?: (figure: DocumentaryFigure) => void;
@@ -15,6 +16,7 @@ const GALLERY_FILTERS: Array<'Todos os registros' | DocumentaryFigure['category'
 ];
 
 export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {
+  const { t } = useLanguage();
   const [filter, setFilter] = useState<'Todos os registros' | DocumentaryFigure['category']>(
     'Todos os registros'
   );
@@ -50,15 +52,13 @@ export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {
         <div className="flex flex-col justify-between gap-6 border-b border-[#D6CEBE] pb-8 lg:flex-row lg:items-end">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-widest text-[#14532D]">
-              Capítulo 6 · Acervo Fotográfico Oficial
+              {t.production.kicker}
             </p>
             <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-[#1C1917] sm:text-4xl">
-              Nossa produção própria de alimentos para doação
+              {t.production.title}
             </h2>
             <p className="mt-3 text-base leading-relaxed text-[#44403C]">
-              Em sua sede no Bairro Olaria, voluntários e colaboradores dedicam-se ao preparo
-              artesanal de pães caseiros, pãezinhos individuais, bolos fatiados, refeições
-              acompanhadas de farofa temperada e o tradicional sopão comunitário.
+              {t.production.subtitle}
             </p>
           </div>
 
@@ -85,7 +85,7 @@ export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {
                       : 'text-[#57534E] hover:text-[#1C1917]'
                   }`}
                 >
-                  {item}
+                  {item === 'Todos os registros' ? t.production.allRecords : item}
                 </button>
               );
             })}
@@ -164,7 +164,7 @@ export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-mono text-xs uppercase tracking-widest text-[#78716C]">
-                      Registro {activeFigure.accessionId}
+                      {t.production.registerLabel} {activeFigure.accessionId}
                     </p>
                     <h3
                       id="accession-modal-title"
@@ -189,20 +189,20 @@ export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {
 
                 <dl className="mt-6 divide-y divide-[#E2DDD3] border-y border-[#E2DDD3] text-xs">
                   <div className="flex justify-between gap-4 py-3">
-                    <dt className="text-[#78716C]">Fonte documental</dt>
+                    <dt className="text-[#78716C]">{t.production.sourceLabel}</dt>
                     <dd className="font-medium text-[#1C1917]">{activeFigure.chapterRef}</dd>
                   </div>
                   <div className="flex justify-between gap-4 py-3">
-                    <dt className="text-[#78716C]">Frente de produção</dt>
+                    <dt className="text-[#78716C]">{t.production.frontLabel}</dt>
                     <dd className="font-medium text-[#14532D]">{activeFigure.category}</dd>
                   </div>
                   <div className="flex justify-between gap-4 py-3">
-                    <dt className="text-[#78716C]">Destinação</dt>
+                    <dt className="text-[#78716C]">{t.production.destinationLabel}</dt>
                     <dd className="text-right text-[#1C1917]">{activeFigure.destination}</dd>
                   </div>
                   <div className="flex justify-between gap-4 py-3">
-                    <dt className="text-[#78716C]">Local de preparo</dt>
-                    <dd className="text-right text-[#1C1917]">Sede Bairro Olaria · Plácido de Castro</dd>
+                    <dt className="text-[#78716C]">{t.production.locationLabel}</dt>
+                    <dd className="text-right text-[#1C1917]">{t.production.locationValue}</dd>
                   </div>
                 </dl>
                 {onEditInStudio && (
@@ -216,7 +216,7 @@ export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {
                     className="mt-5 inline-flex min-h-[40px] w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#9A3412] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#7C2D12]"
                   >
                     <ImagePlus className="h-4 w-4" aria-hidden="true" />
-                    <span>Editar esta foto no Estúdio</span>
+                    <span>{t.production.editInStudio}</span>
                   </button>
                 )}
               </div>
@@ -232,7 +232,7 @@ export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {
                   className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-md border border-[#D6CEBE] bg-white px-3.5 py-2 text-xs font-medium text-[#1C1917] hover:bg-[#EFEBE3]"
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                  <span>Anterior</span>
+                  <span>{t.production.prevBtn}</span>
                 </button>
 
                 <span className="font-mono text-xs tabular-nums text-[#78716C]">
@@ -244,7 +244,7 @@ export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {
                   onClick={() => setSelectedIndex((selectedIndex + 1) % visibleFigures.length)}
                   className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-md border border-[#D6CEBE] bg-white px-3.5 py-2 text-xs font-medium text-[#1C1917] hover:bg-[#EFEBE3]"
                 >
-                  <span>Próxima</span>
+                  <span>{t.production.nextBtn}</span>
                   <ChevronRight className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
