@@ -5,6 +5,7 @@ export interface VolunteerApplication {
   roleId: string;
   roleTitle: string;
   fullName: string;
+  cpf?: string;
   phone: string;
   email?: string;
   availability: string;

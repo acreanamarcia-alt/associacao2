@@ -1,5 +1,6 @@
 import { ArrowUpRight, CheckCircle2, Search, Trash2, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { formatCpf } from '../data/assistedPeopleStore';
 import {
   INSTITUTION_PROFILE,
   VOLUNTEER_ROLES,
@@ -37,6 +38,7 @@ export function VolunteerHub() {
   const { applications, addApplication, removeApplication } = useVolunteersStore();
 
   const [fullName, setFullName] = useState('');
+  const [cpf, setCpf] = useState('');
   const [phone, setPhone] = useState('');
   const [availability, setAvailability] = useState('');
   const [notes, setNotes] = useState('');
@@ -109,6 +111,7 @@ export function VolunteerHub() {
       roleId: activeRole.id,
       roleTitle: activeRole.title,
       fullName: trimmedName,
+      cpf: cpf.trim() || undefined,
       phone: trimmedPhone,
       availability: availability.trim() || activeRole.schedule,
       notes: notes.trim(),
@@ -117,6 +120,7 @@ export function VolunteerHub() {
     setJustSubmittedId(newApp.id);
     setFormError('');
     setFullName('');
+    setCpf('');
     setPhone('');
     setNotes('');
   };
@@ -479,6 +483,25 @@ export function VolunteerHub() {
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="Ex.: Maria Aparecida da Silva"
                         className="mt-1.5 min-h-[44px] w-full rounded-md border border-[#D6CEBE] bg-white px-3 py-2 text-sm text-[#1C1917]"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="volunteer-cpf"
+                        className="block text-xs font-medium text-[#44403C]"
+                      >
+                        CPF
+                      </label>
+                      <input
+                        id="volunteer-cpf"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={14}
+                        value={cpf}
+                        onChange={(e) => setCpf(formatCpf(e.target.value))}
+                        placeholder="000.000.000-00"
+                        className="mt-1.5 min-h-[44px] w-full rounded-md border border-[#D6CEBE] bg-white px-3 py-2 font-mono text-sm text-[#1C1917]"
                       />
                     </div>
 

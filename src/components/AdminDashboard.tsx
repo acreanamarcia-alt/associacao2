@@ -30,6 +30,7 @@ import {
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AssistedPersonStatus,
+  formatCpf,
   useAssistedPeopleStore,
 } from '../data/assistedPeopleStore';
 import {
@@ -74,6 +75,7 @@ import {
   matchesReferenceMonth,
 } from '../utils/dashboardPdfReport';
 import { AdminAccessControlPanel } from './AdminAccessControlPanel';
+import { AdminGlobalSearchBar } from './AdminGlobalSearchBar';
 import { DashboardReportPrintable } from './DashboardReportPrintable';
 import { EditaisCollectorPanel } from './EditaisCollectorPanel';
 import { InstitutionalFooterStrip } from './InstitutionalFooterStrip';
@@ -168,6 +170,7 @@ export function AdminDashboard({
     'Todas' | AssistedPersonStatus
   >('Todas');
   const [assistFullName, setAssistFullName] = useState('');
+  const [assistCpf, setAssistCpf] = useState('');
   const [assistEmail, setAssistEmail] = useState('');
   const [assistPhone, setAssistPhone] = useState('');
   const [assistNeighborhood, setAssistNeighborhood] = useState('');
@@ -384,11 +387,15 @@ export function AdminDashboard({
 
   const filteredAssistedPeople = useMemo(() => {
     const q = assistedSearch.trim().toLowerCase();
+    const qDigits = assistedSearch.replace(/\D/g, '');
     return assistedPeople.filter((p) => {
       const matchesStatus = assistedStatusFilter === 'Todas' || p.status === assistedStatusFilter;
+      const cpfDigits = (p.cpf ?? '').replace(/\D/g, '');
       const matchesQ =
         !q ||
         p.fullName.toLowerCase().includes(q) ||
+        (p.cpf ?? '').toLowerCase().includes(q) ||
+        (Boolean(qDigits) && cpfDigits.includes(qDigits)) ||
         p.email.toLowerCase().includes(q) ||
         p.phone.toLowerCase().includes(q) ||
         (p.neighborhood ?? '').toLowerCase().includes(q);
@@ -541,6 +548,7 @@ export function AdminDashboard({
 
     addAssistedPerson({
       fullName: trimmedName,
+      cpf: assistCpf.trim() || undefined,
       email: trimmedEmail,
       phone: trimmedPhone,
       neighborhood: assistNeighborhood.trim() || 'Plácido de Castro - AC',
@@ -550,6 +558,7 @@ export function AdminDashboard({
 
     setAssistError('');
     setAssistFullName('');
+    setAssistCpf('');
     setAssistEmail('');
     setAssistPhone('');
     setAssistNeighborhood('');
@@ -558,10 +567,11 @@ export function AdminDashboard({
   };
 
   const handleExportAssistedCsv = () => {
-    const header = ['Data_Cadastro', 'Nome', 'Email', 'Telefone', 'Bairro', 'Pessoas_Familia', 'Status', 'Observacoes'];
+    const header = ['Data_Cadastro', 'Nome', 'CPF', 'Email', 'Telefone', 'Bairro', 'Pessoas_Familia', 'Status', 'Observacoes'];
     const rows = filteredAssistedPeople.map((p) => [
       p.createdAt,
       `"${p.fullName.replace(/"/g, '""')}"`,
+      p.cpf ?? '',
       p.email,
       p.phone,
       `"${(p.neighborhood ?? '').replace(/"/g, '""')}"`,
@@ -1065,7 +1075,19 @@ export function AdminDashboard({
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-1 flex-wrap items-center justify-end gap-2.5">
+            <AdminGlobalSearchBar
+              assistedPeople={assistedPeople}
+              volunteerApplications={volunteerApplications}
+              onSelectAssisted={(person) => {
+                setAssistedStatusFilter('Todas');
+                setAssistedSearch(person.cpf || person.fullName);
+                setActiveTab('assisted');
+              }}
+              onSelectVolunteer={() => {
+                setActiveTab('reports');
+              }}
+            />
             <button
               type="button"
               onClick={onExitAdmin}
@@ -2686,7 +2708,7 @@ export function AdminDashboard({
                 onSubmit={handleAddAssistedSubmit}
                 className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-6 sm:grid-cols-12"
               >
-                <div className="sm:col-span-4">
+                <div className="sm:col-span-3">
                   <label
                     htmlFor="assist-full-name"
                     className="block text-xs font-medium text-slate-700"
@@ -2704,7 +2726,26 @@ export function AdminDashboard({
                   />
                 </div>
 
-                <div className="sm:col-span-4">
+                <div className="sm:col-span-3">
+                  <label
+                    htmlFor="assist-cpf"
+                    className="block text-xs font-medium text-slate-700"
+                  >
+                    CPF
+                  </label>
+                  <input
+                    id="assist-cpf"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={14}
+                    value={assistCpf}
+                    onChange={(e) => setAssistCpf(formatCpf(e.target.value))}
+                    placeholder="000.000.000-00"
+                    className="mt-1 min-h-[40px] w-full rounded border border-slate-300 px-3 font-mono text-sm"
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
                   <label
                     htmlFor="assist-email"
                     className="block text-xs font-medium text-slate-700"
@@ -2722,7 +2763,7 @@ export function AdminDashboard({
                   />
                 </div>
 
-                <div className="sm:col-span-4">
+                <div className="sm:col-span-3">
                   <label
                     htmlFor="assist-phone"
                     className="block text-xs font-medium text-slate-700"
@@ -2832,7 +2873,7 @@ export function AdminDashboard({
                     type="search"
                     value={assistedSearch}
                     onChange={(e) => setAssistedSearch(e.target.value)}
-                    placeholder="Buscar nome, e-mail ou telefone..."
+                    placeholder="Buscar nome, CPF, e-mail ou telefone..."
                     className="min-h-[38px] w-64 rounded border border-slate-300 bg-white py-1.5 pr-3 pl-8 text-xs"
                   />
                 </div>
@@ -2842,7 +2883,7 @@ export function AdminDashboard({
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 uppercase tracking-wider text-slate-500">
-                      <th className="px-4 py-3 font-medium">Nome Completo</th>
+                      <th className="px-4 py-3 font-medium">Nome Completo / CPF</th>
                       <th className="px-4 py-3 font-medium">E-mail</th>
                       <th className="px-4 py-3 font-medium">Telefone</th>
                       <th className="px-4 py-3 font-medium">Bairro / Família</th>
@@ -2863,7 +2904,7 @@ export function AdminDashboard({
                           <td className="px-4 py-3">
                             <p className="font-medium text-slate-900">{person.fullName}</p>
                             <p className="font-mono text-[11px] text-slate-500">
-                              Cadastro: {person.createdAt}
+                              {person.cpf ? `CPF: ${person.cpf} · ` : ''}Cadastro: {person.createdAt}
                             </p>
                           </td>
                           <td className="px-4 py-3 text-slate-700">{person.email}</td>
@@ -3149,6 +3190,7 @@ export function AdminDashboard({
                       <thead>
                         <tr className="border-b border-slate-200 text-slate-500">
                           <th className="py-2 pr-3 font-medium">Nome</th>
+                          <th className="py-2 pr-3 font-medium">CPF</th>
                           <th className="py-2 pr-3 font-medium">Telefone</th>
                           <th className="py-2 pr-3 font-medium">Vaga</th>
                           <th className="py-2 pr-3 font-medium">Disponibilidade</th>
@@ -3159,6 +3201,9 @@ export function AdminDashboard({
                         {volunteerApplications.map((v) => (
                           <tr key={v.id}>
                             <td className="py-2.5 pr-3 font-medium text-slate-900">{v.fullName}</td>
+                            <td className="py-2.5 pr-3 font-mono tabular-nums text-slate-600">
+                              {v.cpf || '—'}
+                            </td>
                             <td className="py-2.5 pr-3 font-mono tabular-nums text-slate-700">
                               {v.phone}
                             </td>

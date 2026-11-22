@@ -332,7 +332,8 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       floatingLine2: 'pelo WhatsApp',
     },
     hero: {
-      title: 'Do sopão comunitário no Bairro Olaria à segurança alimentar em Plácido de Castro.',
+      title:
+        'Conheçam o casal missionário Teodoro e Antônia Lúcia, fundadores desse trabalho tão especial que leva acolhimento, dignidade e segurança alimentar às famílias.',
       leadershipKicker: 'Presidência em Atividade · Cozinha Comunitária',
       leadershipCaption1:
         'Em plena atividade, a presidenta da instituição, Antônia Missionária, e o vice-presidente, José Benedito, reafirmam diariamente o compromisso com o bem-estar social. Cada alimento preparado representa não apenas sustento, mas sobretudo um gesto concreto de acolhimento, dignidade e esperança para as famílias atendidas pela nossa comunidade.',
@@ -653,7 +654,8 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       floatingLine2: 'on WhatsApp',
     },
     hero: {
-      title: 'From the community soup kitchen in Bairro Olaria to food security in Plácido de Castro.',
+      title:
+        'Meet the missionary couple Teodoro and Antônia Lúcia, founders of this special work that brings welcome, dignity, and food security to families.',
       leadershipKicker: 'Leadership in Action · Community Kitchen',
       leadershipCaption1:
         'In full daily activity, the institution’s president, Antônia Missionária, and vice president, José Benedito, reaffirm their commitment to social well-being. Every meal prepared represents not only nourishment, but above all a concrete gesture of welcome, dignity, and hope for the families served in our community.',
@@ -975,7 +977,8 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       floatingLine2: 'por WhatsApp',
     },
     hero: {
-      title: 'Del comedor comunitario en el Bairro Olaria a la seguridad alimentaria en Plácido de Castro.',
+      title:
+        'Conozcan al matrimonio misionero Teodoro y Antônia Lúcia, fundadores de esta labor tan especial que lleva acogida, dignidad y seguridad alimentaria a las familias.',
       leadershipKicker: 'Directiva en Actividad · Cocina Comunitaria',
       leadershipCaption1:
         'En plena actividad, la presidenta de la institución, Antônia Missionária, y el vicepresidente, José Benedito, reafirman diariamente su compromiso con el bienestar social. Cada alimento preparado representa no solo sustento, sino sobre todo un gesto concreto de acogida, dignidad y esperanza para las familias atendidas por nuestra comunidad.',

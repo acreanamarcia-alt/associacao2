@@ -141,10 +141,15 @@ export function Footer({ onOpenEbook, onOpenAdmin }: FooterProps) {
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-[#E2DDD3] pt-6 text-xs text-[#78716C]">
-          <p>
-            © {new Date().getFullYear()} {INSTITUTION_PROFILE.legalName} ({INSTITUTION_PROFILE.popularName}) · CNPJ{' '}
-            <span className="font-mono tabular-nums">{INSTITUTION_PROFILE.cnpj}</span>.
-          </p>
+          <div className="space-y-1">
+            <p>
+              © {new Date().getFullYear()} {INSTITUTION_PROFILE.legalName} ({INSTITUTION_PROFILE.popularName}) · CNPJ{' '}
+              <span className="font-mono tabular-nums">{INSTITUTION_PROFILE.cnpj}</span>.
+            </p>
+            <p className="text-[7pt] leading-tight text-[#78716C]">
+              Webdesenvolvedor: Francisco Araujo
+            </p>
+          </div>
           <p>{INSTITUTION_PROFILE.fullAddress}</p>
         </div>
       </div>

@@ -39,7 +39,7 @@ export function HeroSection({
                 </span>
               </p>
 
-              <h1 className="mt-4 font-serif text-[clamp(2.25rem,4vw,3.5rem)] leading-[1.08] font-semibold tracking-tight text-[#1C1917] [text-wrap:balance]">
+              <h1 className="mt-4 font-serif text-[clamp(1.65rem,2.7vw,2.5rem)] leading-[1.14] font-semibold tracking-tight text-[#1C1917] [text-wrap:balance]">
                 {t.hero.title}
               </h1>
 
