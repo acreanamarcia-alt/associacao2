@@ -207,9 +207,11 @@ Caso não encontre nenhum edital novo no momento, informe claramente e sugira 3 
 const ADMIN_AUTH_FILE = path.resolve(__dirname, ".admin-auth.json");
 const ADMIN_COOKIE_NAME = "arsbp_admin_session";
 const DEFAULT_ADMIN_EMAIL =
-  process.env.ADMIN_EMAIL?.trim().toLowerCase() || "admin@bompastor.org.br";
-const DEFAULT_ADMIN_PASSWORD =
-  process.env.ADMIN_PASSWORD?.trim() || "BomPastor@2026";
+  process.env.ADMIN_EMAIL?.trim().toLowerCase() || "pastorac@gmail.com";
+
+function getConfiguredEnvAdminPassword(): string {
+  return process.env.ADMIN_PASSWORD?.trim() || "";
+}
 
 type UserRole = "admin" | "gerente" | "usuario";
 type UserStatus = "ativo" | "inativo";
@@ -301,7 +303,23 @@ function sanitizePublicUser(user: UserAccountRecord) {
   };
 }
 
+function hasClaimedAdminAccount(db: StoredAuthDatabase): boolean {
+  return db.users.some(
+    (u) =>
+      u.role === "admin" &&
+      u.status === "ativo" &&
+      !u.isDefaultPassword &&
+      Boolean(u.passwordHash)
+  );
+}
+
 function readOrInitAuthDb(): StoredAuthDatabase {
+  const envAdminPass = getConfiguredEnvAdminPassword();
+  let sessionSecret =
+    process.env.SESSION_SECRET?.trim() || crypto.randomBytes(32).toString("hex");
+  let loadedUsers: UserAccountRecord[] = [];
+  let loadedFromDisk = false;
+
   try {
     if (fs.existsSync(ADMIN_AUTH_FILE)) {
       const raw = fs.readFileSync(ADMIN_AUTH_FILE, "utf-8");
@@ -323,19 +341,14 @@ function readOrInitAuthDb(): StoredAuthDatabase {
       const parsed = JSON.parse(raw) as {
         sessionSecret?: string;
         users?: RawStoredUser[];
-        email?: string;
-        displayName?: string;
-        passwordHash?: string;
-        isDefaultPassword?: boolean;
-        updatedAt?: string;
       };
 
-      if (
-        typeof parsed.sessionSecret === "string" &&
-        Array.isArray(parsed.users) &&
-        parsed.users.length > 0
-      ) {
-        const users: UserAccountRecord[] = parsed.users
+      if (typeof parsed.sessionSecret === "string" && parsed.sessionSecret.length >= 16) {
+        sessionSecret = parsed.sessionSecret;
+      }
+
+      if (Array.isArray(parsed.users)) {
+        loadedUsers = parsed.users
           .filter(
             (u): u is RawStoredUser & {
               id: string;
@@ -345,7 +358,9 @@ function readOrInitAuthDb(): StoredAuthDatabase {
               Boolean(u) &&
               typeof u.id === "string" &&
               typeof u.email === "string" &&
-              typeof u.passwordHash === "string"
+              typeof u.passwordHash === "string" &&
+              // Remove legacy un-claimed default-password seeds
+              !(u.id === "usr-admin-root" && u.isDefaultPassword === true)
           )
           .map((u) => ({
             id: u.id,
@@ -359,68 +374,56 @@ function readOrInitAuthDb(): StoredAuthDatabase {
             updatedAt: u.updatedAt || new Date().toISOString(),
             lastLoginAt: typeof u.lastLoginAt === "string" ? u.lastLoginAt : null,
           }));
-
-        if (users.length > 0) {
-          return {
-            sessionSecret: parsed.sessionSecret,
-            users,
-          };
-        }
-      }
-
-      if (
-        typeof parsed.email === "string" &&
-        typeof parsed.passwordHash === "string" &&
-        typeof parsed.sessionSecret === "string"
-      ) {
-        const now = new Date().toISOString();
-        const migrated: StoredAuthDatabase = {
-          sessionSecret: parsed.sessionSecret,
-          users: [
-            {
-              id: "usr-admin-root",
-              nome: parsed.displayName || "Diretoria · Projeto Sopão",
-              email: parsed.email.trim().toLowerCase(),
-              role: "admin",
-              status: "ativo",
-              passwordHash: parsed.passwordHash,
-              isDefaultPassword: Boolean(parsed.isDefaultPassword),
-              createdAt: parsed.updatedAt || now,
-              updatedAt: parsed.updatedAt || now,
-              lastLoginAt: null,
-            },
-          ],
-        };
-        writeAuthDb(migrated);
-        return migrated;
+        loadedFromDisk = true;
       }
     }
   } catch {
-    // Fallback to initial database
+    // Fallback to clean auth store
   }
 
-  const now = new Date().toISOString();
-  const initial: StoredAuthDatabase = {
-    sessionSecret:
-      process.env.SESSION_SECRET?.trim() || crypto.randomBytes(32).toString("hex"),
-    users: [
-      {
+  // Se ADMIN_PASSWORD estiver definido em variável de ambiente, sincroniza a conta raiz (DEFAULT_ADMIN_EMAIL)
+  if (envAdminPass) {
+    const now = new Date().toISOString();
+    const existingRootIdx = loadedUsers.findIndex(
+      (u) => u.id === "usr-admin-root" || u.email.toLowerCase() === DEFAULT_ADMIN_EMAIL
+    );
+    if (existingRootIdx >= 0) {
+      const existing = loadedUsers[existingRootIdx];
+      loadedUsers[existingRootIdx] = {
+        ...existing,
+        email: DEFAULT_ADMIN_EMAIL,
+        role: "admin",
+        status: "ativo",
+        passwordHash: hashPassword(envAdminPass),
+        isDefaultPassword: false,
+        updatedAt: now,
+      };
+    } else {
+      loadedUsers.unshift({
         id: "usr-admin-root",
         nome: "Diretoria · Projeto Sopão",
         email: DEFAULT_ADMIN_EMAIL,
         role: "admin",
         status: "ativo",
-        passwordHash: hashPassword(DEFAULT_ADMIN_PASSWORD),
-        isDefaultPassword: !process.env.ADMIN_PASSWORD,
+        passwordHash: hashPassword(envAdminPass),
+        isDefaultPassword: false,
         createdAt: now,
         updatedAt: now,
         lastLoginAt: null,
-      },
-    ],
+      });
+    }
+  }
+
+  const db: StoredAuthDatabase = {
+    sessionSecret,
+    users: loadedUsers,
   };
 
-  writeAuthDb(initial);
-  return initial;
+  if (!loadedFromDisk || envAdminPass) {
+    writeAuthDb(db);
+  }
+
+  return db;
 }
 
 function writeAuthDb(db: StoredAuthDatabase): void {
@@ -595,18 +598,87 @@ function clearLoginAttempts(ip: string): void {
   loginAttempts.delete(ip);
 }
 
-function setSessionCookie(res: Response, token: string): void {
-  res.cookie(ADMIN_COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+function isHttpsRequest(req: Request): boolean {
+  if (req.secure) return true;
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").toLowerCase();
+  return forwardedProto.includes("https");
+}
+
+function setSessionCookie(req: Request, res: Response, token: string): void {
+  const maxAge = 60 * 60 * 24 * 7;
+  const encoded = encodeURIComponent(token);
+  if (isHttpsRequest(req)) {
+    res.setHeader(
+      "Set-Cookie",
+      `${ADMIN_COOKIE_NAME}=${encoded}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=None; Partitioned`
+    );
+  } else {
+    res.setHeader(
+      "Set-Cookie",
+      `${ADMIN_COOKIE_NAME}=${encoded}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax`
+    );
+  }
+}
+
+function clearSessionCookie(req: Request, res: Response): void {
+  if (isHttpsRequest(req)) {
+    res.setHeader(
+      "Set-Cookie",
+      `${ADMIN_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None; Partitioned`
+    );
+  } else {
+    res.setHeader(
+      "Set-Cookie",
+      `${ADMIN_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`
+    );
+  }
+}
+
+function verifyMutationOrigin(req: Request, res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    next();
+    return;
+  }
+
+  const customHeader = req.headers["x-requested-with"];
+  if (typeof customHeader === "string" && customHeader.length > 0) {
+    next();
+    return;
+  }
+
+  const origin = req.headers.origin;
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim();
+  if (origin && host) {
+    try {
+      const originHost = new URL(origin).host;
+      if (originHost === host) {
+        next();
+        return;
+      }
+    } catch {
+      // Invalid origin URL
+    }
+  }
+
+  res.status(403).json({
+    error: "Requisição rejeitada pela verificação de origem.",
   });
 }
 
 async function startServer() {
   const app = express();
+  app.set("trust proxy", 1);
   app.use(express.json({ limit: "15mb" }));
+
+  // Garante resposta JSON mesmo quando o corpo enviado for inválido
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof SyntaxError && req.path.startsWith("/api")) {
+      res.status(400).json({ error: "Corpo da requisição em JSON inválido." });
+      return;
+    }
+    next(err);
+  });
 
   // Inicializa banco RBAC na primeira execução
   readOrInitAuthDb();
@@ -620,15 +692,15 @@ async function startServer() {
     const db = readOrInitAuthDb();
     const token = extractTokenFromRequest(req);
     const activeUser = verifyJwtUser(token, db);
-    const defaultRoot = db.users.find(
-      (u) => u.role === "admin" && u.isDefaultPassword && u.status === "ativo"
-    );
+    const envAdminPass = getConfiguredEnvAdminPassword();
+    const needsAdminSetup = !envAdminPass && !hasClaimedAdminAccount(db);
 
     if (!activeUser) {
       res.json({
         authenticated: false,
-        defaultLoginAvailable: Boolean(defaultRoot),
-        defaultEmailHint: defaultRoot ? defaultRoot.email : undefined,
+        needsAdminSetup,
+        defaultLoginAvailable: false,
+        defaultEmailHint: DEFAULT_ADMIN_EMAIL,
       });
       return;
     }
@@ -636,6 +708,7 @@ async function startServer() {
     const sanitized = sanitizePublicUser(activeUser);
     res.json({
       authenticated: true,
+      needsAdminSetup: false,
       user: sanitized,
       admin: sanitized,
     });
@@ -643,6 +716,77 @@ async function startServer() {
 
   app.get("/api/auth/me", handleGetSession);
   app.get("/api/admin/auth/session", handleGetSession);
+
+  // 1b. Configuração inicial única (First-run admin claim quando ADMIN_PASSWORD não está definido)
+  app.post("/api/auth/setup", (req: Request, res: Response) => {
+    const envAdminPass = getConfiguredEnvAdminPassword();
+    if (envAdminPass) {
+      res.status(403).json({
+        error: "A conta administrativa já está configurada pelas variáveis do servidor.",
+      });
+      return;
+    }
+
+    const db = readOrInitAuthDb();
+    if (hasClaimedAdminAccount(db)) {
+      res.status(403).json({
+        error: "A configuração inicial do administrador já foi concluída.",
+      });
+      return;
+    }
+
+    const body = req.body as {
+      nome?: string;
+      email?: string;
+      password?: string;
+    };
+
+    const nome = (body?.nome ?? "Diretoria · Projeto Sopão").trim();
+    const email = (body?.email?.trim().toLowerCase() || DEFAULT_ADMIN_EMAIL);
+    const password = body?.password ?? "";
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ error: "Informe um endereço de e-mail válido." });
+      return;
+    }
+    if (password.length < 6) {
+      res.status(400).json({
+        error: "A senha do administrador deve possuir no mínimo 6 caracteres.",
+      });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const claimedAdmin: UserAccountRecord = {
+      id: "usr-admin-root",
+      nome: nome.length >= 3 ? nome : "Diretoria · Projeto Sopão",
+      email,
+      role: "admin",
+      status: "ativo",
+      passwordHash: hashPassword(password),
+      isDefaultPassword: false,
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
+    };
+
+    const remainingUsers = db.users.filter(
+      (u) => u.id !== "usr-admin-root" && u.email.toLowerCase() !== email
+    );
+    db.users = [claimedAdmin, ...remainingUsers];
+    writeAuthDb(db);
+
+    const token = createJwtToken(claimedAdmin, db.sessionSecret);
+    setSessionCookie(req, res, token);
+    const sanitized = sanitizePublicUser(claimedAdmin);
+
+    res.status(201).json({
+      authenticated: true,
+      token,
+      user: sanitized,
+      admin: sanitized,
+    });
+  });
 
   // 2. Cadastro público (/api/auth/register) - atribui role padrão "usuario"
   app.post("/api/auth/register", (req: Request, res: Response) => {
@@ -703,7 +847,7 @@ async function startServer() {
     writeAuthDb(db);
 
     const token = createJwtToken(createdUser, db.sessionSecret);
-    setSessionCookie(res, token);
+    setSessionCookie(req, res, token);
     const sanitized = sanitizePublicUser(createdUser);
 
     res.status(201).json({
@@ -735,9 +879,23 @@ async function startServer() {
     }
 
     const db = readOrInitAuthDb();
-    const user = db.users.find((u) => u.email.toLowerCase() === email);
+    const envAdminPass = getConfiguredEnvAdminPassword();
+    if (!envAdminPass && !hasClaimedAdminAccount(db) && email === DEFAULT_ADMIN_EMAIL) {
+      res.status(403).json({
+        error:
+          "Primeiro acesso detectado: defina a senha do administrador na tela de Configuração Inicial.",
+      });
+      return;
+    }
 
-    if (!user || !verifyPassword(password, user.passwordHash)) {
+    const user = db.users.find((u) => u.email.toLowerCase() === email);
+    const isEnvAdminMatch =
+      Boolean(envAdminPass) &&
+      email === DEFAULT_ADMIN_EMAIL &&
+      password.length === envAdminPass.length &&
+      crypto.timingSafeEqual(Buffer.from(password), Buffer.from(envAdminPass));
+
+    if (!user || (!isEnvAdminMatch && !verifyPassword(password, user.passwordHash))) {
       recordFailedLogin(ip);
       res.status(401).json({
         error: "E-mail ou senha inválidos. Verifique os dados informados.",
@@ -764,7 +922,7 @@ async function startServer() {
     writeAuthDb(db);
 
     const token = createJwtToken(updatedUser, db.sessionSecret);
-    setSessionCookie(res, token);
+    setSessionCookie(req, res, token);
     const sanitized = sanitizePublicUser(updatedUser);
 
     res.json({
@@ -779,8 +937,8 @@ async function startServer() {
   app.post("/api/admin/auth/login", handleLogin);
 
   // 4. Logout (/api/auth/logout e alias /api/admin/auth/logout)
-  const handleLogout = (_req: Request, res: Response) => {
-    res.clearCookie(ADMIN_COOKIE_NAME, { path: "/" });
+  const handleLogout = (req: Request, res: Response) => {
+    clearSessionCookie(req, res);
     res.json({ ok: true });
   };
 
@@ -856,7 +1014,7 @@ async function startServer() {
     writeAuthDb(db);
 
     const freshToken = createJwtToken(updatedUser, db.sessionSecret);
-    setSessionCookie(res, freshToken);
+    setSessionCookie(req, res, freshToken);
     const sanitized = sanitizePublicUser(updatedUser);
 
     res.json({
@@ -867,8 +1025,8 @@ async function startServer() {
     });
   };
 
-  app.post("/api/auth/credentials", requireAuth, handleUpdateSelfCredentials);
-  app.post("/api/admin/auth/credentials", requireAuth, handleUpdateSelfCredentials);
+  app.post("/api/auth/credentials", verifyMutationOrigin, requireAuth, handleUpdateSelfCredentials);
+  app.post("/api/admin/auth/credentials", verifyMutationOrigin, requireAuth, handleUpdateSelfCredentials);
 
   // 6. Gestão RBAC de Usuários (/api/admin/users)
   // GET: leitura permitida para admin e gerente (suporta busca, filtro de role/status e paginação)
@@ -939,6 +1097,7 @@ async function startServer() {
   // POST: criar usuário com definição de role (somente admin)
   app.post(
     "/api/admin/users",
+    verifyMutationOrigin,
     requireAuth,
     requireRole("admin"),
     (req: AuthenticatedRequest, res: Response) => {
@@ -1011,6 +1170,7 @@ async function startServer() {
   // PATCH: alterar role, status (ativo/inativo), dados ou redefinir senha (somente admin)
   app.patch(
     "/api/admin/users/:id",
+    verifyMutationOrigin,
     requireAuth,
     requireRole("admin"),
     (req: AuthenticatedRequest, res: Response) => {
@@ -1119,6 +1279,7 @@ async function startServer() {
   // DELETE: remover usuário (somente admin)
   app.delete(
     "/api/admin/users/:id",
+    verifyMutationOrigin,
     requireAuth,
     requireRole("admin"),
     (req: AuthenticatedRequest, res: Response) => {
@@ -1523,6 +1684,13 @@ Busque editais abertos, chamadas públicas governamentais (municipais, estaduais
         isPaidKeyRequired: Boolean(formatted.isPaidKeyRequired),
       });
     }
+  });
+
+  // Garante que qualquer rota /api/* inexistente retorne JSON (nunca HTML/texto)
+  app.use("/api", (_req: Request, res: Response) => {
+    res.status(404).json({
+      error: "Rota da API não encontrada.",
+    });
   });
 
   const isProd = process.env.NODE_ENV === "production";

@@ -1,10 +1,12 @@
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Clock, Users, Utensils } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAssistedPeopleStore } from '../data/assistedPeopleStore';
 import { useDonationsStore } from '../data/donationsStore';
 import { VOLUNTEER_ROLES } from '../data/institutionalData';
 import { useVolunteersStore } from '../data/volunteersStore';
+import { useCountUp } from '../hooks/useCountUp';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ChristmasCardCornerAccent } from './ChristmasThemeElements';
 
 export type ImpactMetricType = 'meals' | 'hours';
 
@@ -103,6 +105,7 @@ export function MonthlyGoalProgress({
       (sum, role) => sum + role.spotsFilled,
       0
     );
+    const activeVolunteers = activeCoreVolunteers + applications.length;
     const shiftEfficiencyFactor = Math.max(0.85, activeCoreVolunteers / 21);
     const portalVolunteerHours = applications.length * 14;
 
@@ -111,6 +114,7 @@ export function MonthlyGoalProgress({
 
     return {
       monthLabel: formatMonthLabel(now, lang),
+      activeVolunteers,
       meals: {
         current: mealsServed,
         target: MEALS_MONTHLY_TARGET,
@@ -133,6 +137,16 @@ export function MonthlyGoalProgress({
 
   const currentData = activeMetric === 'meals' ? metrics.meals : metrics.hours;
   const companionData = activeMetric === 'meals' ? metrics.hours : metrics.meals;
+
+  const animatedMeals = useCountUp(metrics.meals.current, { durationMs: 1200 });
+  const animatedVolunteers = useCountUp(metrics.activeVolunteers, { durationMs: 950 });
+  const animatedHours = useCountUp(metrics.hours.current, { durationMs: 1100 });
+
+  const animatedCurrent = useCountUp(currentData.current, { durationMs: 1150 });
+  const animatedPercent = useCountUp(currentData.percent, { durationMs: 1150 });
+  const animatedRemaining = useCountUp(currentData.remaining, { durationMs: 1150 });
+  const animatedCompanionCurrent = useCountUp(companionData.current, { durationMs: 1150 });
+  const animatedCompanionPercent = useCountUp(companionData.percent, { durationMs: 1150 });
 
   const currentUnit =
     activeMetric === 'meals'
@@ -161,7 +175,8 @@ export function MonthlyGoalProgress({
   const isGoalReached = currentData.remaining === 0;
 
   return (
-    <div className="mt-8 rounded-lg border border-[#D6CEBE] bg-white p-5 sm:p-6">
+    <div className="relative mt-8 rounded-lg border border-[#D6CEBE] bg-white p-5 sm:p-6">
+      <ChristmasCardCornerAccent />
       <div className="flex flex-col justify-between gap-4 border-b border-[#EFEBE3] pb-4 lg:flex-row lg:items-center">
         <div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-[#57534E]">
@@ -208,11 +223,91 @@ export function MonthlyGoalProgress({
         </div>
       </div>
 
+      {/* Live count-up KPI strip for meals served, active volunteers, and volunteer hours */}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <button
+          type="button"
+          onClick={() => setActiveMetric('meals')}
+          className={`flex items-center justify-between rounded-md border px-3.5 py-2.5 text-left transition-colors cursor-pointer ${
+            activeMetric === 'meals'
+              ? 'border-[#14532D]/40 bg-[#F0FDF4]'
+              : 'border-[#EFEBE3] bg-[#FAF8F4] hover:border-[#D6CEBE]'
+          }`}
+        >
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#57534E]">
+              {t.hero.monthlyGoal.tabMeals}
+            </p>
+            <p className="mt-0.5 flex items-baseline gap-1.5">
+              <span className="font-mono text-xl font-bold tabular-nums text-[#14532D] sm:text-2xl">
+                {formatNumber(animatedMeals, lang)}
+              </span>
+              <span className="text-xs text-[#57534E]">
+                {t.hero.monthlyGoal.mealsUnit}
+              </span>
+            </p>
+          </div>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#14532D]/10 text-[#14532D]">
+            <Utensils className="h-4 w-4" aria-hidden="true" />
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onJumpToVolunteer}
+          className="flex items-center justify-between rounded-md border border-[#EFEBE3] bg-[#FAF8F4] px-3.5 py-2.5 text-left transition-colors hover:border-[#D6CEBE] cursor-pointer"
+        >
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#57534E]">
+              {t.hero.monthlyGoal.volunteersLabel}
+            </p>
+            <p className="mt-0.5 flex items-baseline gap-1.5">
+              <span className="font-mono text-xl font-bold tabular-nums text-[#1C1917] sm:text-2xl">
+                {formatNumber(animatedVolunteers, lang)}
+              </span>
+              <span className="text-xs text-[#57534E]">
+                {t.hero.monthlyGoal.volunteersUnit}
+              </span>
+            </p>
+          </div>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#9A3412]/10 text-[#9A3412]">
+            <Users className="h-4 w-4" aria-hidden="true" />
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveMetric('hours')}
+          className={`flex items-center justify-between rounded-md border px-3.5 py-2.5 text-left transition-colors cursor-pointer ${
+            activeMetric === 'hours'
+              ? 'border-[#9A3412]/40 bg-[#FFF7ED]'
+              : 'border-[#EFEBE3] bg-[#FAF8F4] hover:border-[#D6CEBE]'
+          }`}
+        >
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#57534E]">
+              {t.hero.monthlyGoal.tabHours}
+            </p>
+            <p className="mt-0.5 flex items-baseline gap-1.5">
+              <span className="font-mono text-xl font-bold tabular-nums text-[#9A3412] sm:text-2xl">
+                {formatNumber(animatedHours, lang)}
+              </span>
+              <span className="text-xs text-[#57534E]">
+                {t.hero.monthlyGoal.hoursUnit}
+              </span>
+            </p>
+          </div>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#9A3412]/10 text-[#9A3412]">
+            <Clock className="h-4 w-4" aria-hidden="true" />
+          </span>
+        </button>
+      </div>
+
       <div className="mt-5">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <span className="font-mono text-2xl font-semibold tabular-nums tracking-tight text-[#1C1917] sm:text-3xl">
-              {formatNumber(currentData.current, lang)}
+              {formatNumber(animatedCurrent, lang)}
             </span>
             <span className="font-mono text-sm tabular-nums text-[#57534E]">
               / {formatNumber(currentData.target, lang)} {currentUnit}
@@ -221,7 +316,7 @@ export function MonthlyGoalProgress({
 
           <div className="flex items-baseline gap-2 text-right">
             <span className="font-mono text-xl font-bold tabular-nums text-[#14532D] sm:text-2xl">
-              {currentData.percent}%
+              {animatedPercent}%
             </span>
             <span className="text-xs font-medium text-[#57534E]">
               {t.hero.monthlyGoal.reachedSuffix}
@@ -242,7 +337,7 @@ export function MonthlyGoalProgress({
           className="relative mt-3 h-3.5 w-full overflow-hidden rounded-full bg-[#EFEBE3]"
         >
           <div
-            className={`h-full w-full origin-left rounded-full transition-transform duration-500 ease-out ${
+            className={`h-full w-full origin-left rounded-full transition-transform duration-[1150ms] ease-out motion-reduce:transition-none ${
               activeMetric === 'meals' ? 'bg-[#14532D]' : 'bg-[#9A3412]'
             }`}
             style={{ transform: `scaleX(${scaleRatio})` }}
@@ -263,11 +358,11 @@ export function MonthlyGoalProgress({
 
         <div className="mt-3.5 flex flex-col justify-between gap-2 text-xs text-[#57534E] sm:flex-row sm:items-center">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="font-medium text-[#1C1917]">
+            <span className="font-medium text-[#1C1917] tabular-nums">
               {isGoalReached
                 ? t.hero.monthlyGoal.completedLabel
                 : `${t.hero.monthlyGoal.remainingPrefix} ${formatNumber(
-                    currentData.remaining,
+                    animatedRemaining,
                     lang
                   )} ${currentUnit}`}
             </span>
@@ -275,10 +370,10 @@ export function MonthlyGoalProgress({
             <span className="tabular-nums">
               {companionTitle}:{' '}
               <strong className="font-mono font-medium text-[#1C1917]">
-                {formatNumber(companionData.current, lang)} /{' '}
+                {formatNumber(animatedCompanionCurrent, lang)} /{' '}
                 {formatNumber(companionData.target, lang)} {companionUnit}
               </strong>{' '}
-              ({companionData.percent}%)
+              ({animatedCompanionPercent}%)
             </span>
           </div>
 

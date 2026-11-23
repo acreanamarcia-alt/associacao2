@@ -2,6 +2,11 @@ import { ArrowRight, BookOpen, Eye, Users, Volume2 } from 'lucide-react';
 import { INSTITUTION_PROFILE, OFFICIAL_ASSETS } from '../data/institutionalData';
 import { useLanguage } from '../i18n/LanguageContext';
 import { DonateButton } from './DonateButton';
+import {
+  ChristmasCardCornerAccent,
+  ChristmasGoldStarAccent,
+  ChristmasLogoCornerAccent,
+} from './ChristmasThemeElements';
 import { MonthlyGoalProgress } from './MonthlyGoalProgress';
 import { PWAInstallButton } from './PWAInstallButton';
 import { WhatsAppButton } from './WhatsAppButton';
@@ -43,11 +48,12 @@ export function HeroSection({
                 {t.hero.title}
               </h1>
 
-              <figure className="mt-6 grid grid-cols-1 items-center gap-5 rounded-lg border border-[#D6CEBE] bg-white p-4 sm:grid-cols-12 sm:p-5">
+              <figure className="relative mt-6 grid grid-cols-1 items-center gap-5 rounded-lg border border-[#D6CEBE] bg-white p-4 sm:grid-cols-12 sm:p-5">
+                <ChristmasCardCornerAccent />
                 <div className="overflow-hidden rounded-md bg-[#EFEBE3] aspect-[3/4] sm:col-span-5">
                   <img
                     src={OFFICIAL_ASSETS.leadershipInAction}
-                    alt="Presidenta Antônia Missionária e vice-presidente José Benedito na cozinha comunitária do Projeto Sopão com fornadas de bolos caseiros"
+                    alt="Presidenta Antônia Missionária e vice-presidente Missionário Teodoro na cozinha comunitária do Projeto Sopão com fornadas de bolos caseiros"
                     referrerPolicy="no-referrer"
                     className="h-full w-full object-cover object-center"
                   />
@@ -119,8 +125,9 @@ export function HeroSection({
             <div className="mt-6 rounded-lg border-2 border-[#14532D] bg-[#14532D] p-4 text-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-white/15 text-white">
+                  <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-white/15 text-white">
                     <Eye className="h-5 w-5" aria-hidden="true" />
+                    <ChristmasGoldStarAccent className="absolute -top-1 -right-1 h-3 w-3" />
                   </div>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-widest text-white/80">
@@ -166,13 +173,16 @@ export function HeroSection({
                 className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"
               />
 
-              <div className="absolute top-4 right-4 h-20 w-20 overflow-hidden rounded-full border-2 border-white/90 bg-white shadow-sm sm:h-24 sm:w-24">
-                <img
-                  src={OFFICIAL_ASSETS.logo}
-                  alt="Selo oficial Projeto Sopão Acre — Contato 68 999587200"
-                  referrerPolicy="no-referrer"
-                  className="h-full w-full object-cover"
-                />
+              <div className="absolute top-4 right-4 h-20 w-20 sm:h-24 sm:w-24">
+                <div className="h-full w-full overflow-hidden rounded-full border-2 border-[#D4AF37]/75 bg-white shadow-sm">
+                  <img
+                    src={OFFICIAL_ASSETS.logo}
+                    alt="Selo oficial Projeto Sopão Acre — Contato 68 999587200"
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <ChristmasLogoCornerAccent />
               </div>
 
               <div className="absolute inset-x-0 bottom-0 p-5 text-white">

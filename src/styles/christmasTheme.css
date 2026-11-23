@@ -1,0 +1,302 @@
+/* ==========================================================================
+   TEMA NATALINO ELEGANTE & SUAVE (.tema-natal)
+   --------------------------------------------------------------------------
+   Paleta:
+   - Fundo Principal:     #FFFFFF / #FAFAFA (Branco puro / Branco gelo suave)
+   - Verde Pinheiro:      #1E5631 / #15803D (Ações e destaques principais)
+   - Vermelho Natalino:   #C0392B / #B91C1C (Vermelho fosco elegante)
+   - Dourado Champanhe:   #D4AF37 / #E5C158 (Bordas finas, ícones, brilho suave)
+   - Texto Principal:     #1F2937 (Cinza escuro de alto contraste)
+
+   Para desativar após as festas:
+   - Remova `.tema-natal` do <html> ou defina `CHRISTMAS_THEME_ENABLED = false`
+     em `src/config/christmasTheme.ts`.
+   ========================================================================== */
+
+.tema-natal {
+  --natal-fundo: #fafafa;
+  --natal-fundo-suave: #f5f6f7;
+  --natal-pinho: #1e5631;
+  --natal-pinho-hover: #15803d;
+  --natal-vermelho: #c0392b;
+  --natal-vermelho-escuro: #b91c1c;
+  --natal-dourado: #d4af37;
+  --natal-dourado-claro: #e5c158;
+  --natal-dourado-borda: rgba(212, 175, 55, 0.38);
+  --natal-dourado-borda-hover: rgba(212, 175, 55, 0.68);
+  --natal-card: #ffffff;
+  --natal-texto: #1f2937;
+  --natal-neve: #fafafa;
+
+  background-color: var(--natal-fundo);
+  color: var(--natal-texto);
+}
+
+.tema-natal body,
+.tema-natal .bg-\[\#FBF9F5\] {
+  background-color: var(--natal-fundo);
+}
+
+.tema-natal .bg-\[\#F4F0E8\] {
+  background-color: var(--natal-fundo-suave);
+}
+
+.tema-natal .text-\[\#1C1917\] {
+  color: var(--natal-texto);
+}
+
+/* Cabeçalho e rodapé com fundo branco/gelo leve e fio dourado */
+.tema-natal header {
+  background-color: rgba(255, 255, 255, 0.96);
+  border-bottom-color: var(--natal-dourado-borda);
+  box-shadow: 0 2px 12px -4px rgba(212, 175, 55, 0.12);
+}
+
+.tema-natal footer {
+  background-color: var(--natal-fundo-suave);
+  border-top-color: var(--natal-dourado-borda);
+}
+
+/* --- 1. Banner de Felicitações (Vermelho Fosco + Ouro Champanhe) --------- */
+@keyframes natalBannerSlideFade {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tema-natal .natal-banner {
+  background: linear-gradient(
+    90deg,
+    var(--natal-vermelho-escuro) 0%,
+    var(--natal-vermelho) 50%,
+    var(--natal-vermelho-escuro) 100%
+  );
+  border-bottom: 1px solid rgba(229, 193, 88, 0.65);
+  color: #ffffff;
+  animation: natalBannerSlideFade 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.tema-natal .natal-banner-gold-dot {
+  color: var(--natal-dourado-claro);
+}
+
+/* --- 2. Paleta Natalina Suave (Pinheiro #1E5631 / Vermelho #C0392B) ------- */
+.tema-natal .bg-\[\#14532D\] {
+  background-color: var(--natal-pinho);
+}
+
+.tema-natal .hover\:bg-\[\#0F3F22\]:hover {
+  background-color: var(--natal-pinho-hover);
+}
+
+.tema-natal .text-\[\#14532D\] {
+  color: var(--natal-pinho);
+}
+
+.tema-natal .border-\[\#14532D\] {
+  border-color: var(--natal-pinho);
+}
+
+.tema-natal .bg-\[\#9A3412\] {
+  background-color: var(--natal-vermelho);
+}
+
+.tema-natal .hover\:bg-\[\#7C2D12\]:hover {
+  background-color: var(--natal-vermelho-escuro);
+}
+
+.tema-natal .text-\[\#9A3412\] {
+  color: var(--natal-vermelho);
+}
+
+.tema-natal .border-\[\#9A3412\]\/40 {
+  border-color: rgba(192, 57, 43, 0.42);
+}
+
+/* --- 3. Cards em Destaque: Fundo Branco Puro + Borda Dourada + Brilho Suave */
+.tema-natal main .bg-white.rounded-lg,
+.tema-natal main .bg-white.rounded-xl,
+.tema-natal main figure.bg-white,
+.tema-natal main article.bg-white,
+.tema-natal main aside .bg-white.rounded-lg {
+  background-color: var(--natal-card);
+  border-color: var(--natal-dourado-borda);
+  box-shadow:
+    0 4px 16px -4px rgba(212, 175, 55, 0.16),
+    0 1px 4px rgba(30, 86, 49, 0.06);
+  transition:
+    border-color 200ms ease,
+    box-shadow 220ms ease;
+}
+
+.tema-natal main .bg-white.rounded-lg:hover,
+.tema-natal main .bg-white.rounded-xl:hover,
+.tema-natal main figure.bg-white:hover,
+.tema-natal main article.bg-white:hover {
+  border-color: var(--natal-dourado-borda-hover);
+  box-shadow:
+    0 8px 22px -6px rgba(212, 175, 55, 0.24),
+    0 2px 6px rgba(30, 86, 49, 0.08);
+}
+
+/* Card de destaque verde (contador de visitantes / destaques institucionais) */
+.tema-natal main .bg-\[\#14532D\].rounded-lg {
+  border-color: rgba(229, 193, 88, 0.52);
+  box-shadow:
+    0 6px 18px -4px rgba(30, 86, 49, 0.24),
+    0 0 0 1px rgba(212, 175, 55, 0.24);
+}
+
+/* --- 4. Efeito de Neve Discreto (CSS Puro, mobile-friendly, pointer-events: none) */
+@keyframes natalSnowFall {
+  0% {
+    transform: translate3d(0, -8vh, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(12px, 50vh, 0) rotate(180deg);
+  }
+  100% {
+    transform: translate3d(-8px, 108vh, 0) rotate(360deg);
+  }
+}
+
+.tema-natal .natal-snow-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tema-natal .natal-snowflake {
+  position: absolute;
+  top: -5vh;
+  color: #94a3b8;
+  pointer-events: none;
+  will-change: transform;
+  animation-name: natalSnowFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* --- 5. Luzinhas delicadas no topo do cabeçalho --------------------------- */
+@keyframes natalTwinkle {
+  0%,
+  100% {
+    opacity: 0.48;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.tema-natal .natal-light-bulb {
+  animation: natalTwinkle 3.2s ease-in-out infinite;
+}
+
+.tema-natal .natal-light-bulb-alt {
+  animation: natalTwinkle 3.2s ease-in-out 1.6s infinite;
+}
+
+/* --- 6. Botões de Ação e Links: Borda Fina Dourada + Brilho Suave --------- */
+.tema-natal a:hover {
+  text-decoration-color: var(--natal-dourado);
+}
+
+.tema-natal header nav a:hover,
+.tema-natal header nav button:hover {
+  color: var(--natal-vermelho);
+}
+
+.tema-natal footer a:hover {
+  color: var(--natal-pinho);
+}
+
+.tema-natal button.bg-\[\#14532D\],
+.tema-natal a.bg-\[\#14532D\],
+.tema-natal button.bg-\[\#9A3412\],
+.tema-natal a.bg-\[\#9A3412\] {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(229, 193, 88, 0.55);
+  box-shadow:
+    0 2px 10px -2px rgba(212, 175, 55, 0.25),
+    0 1px 0 rgba(229, 193, 88, 0.45);
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 220ms ease;
+}
+
+.tema-natal button.bg-\[\#14532D\]:hover,
+.tema-natal a.bg-\[\#14532D\]:hover {
+  border-color: var(--natal-dourado-claro);
+  box-shadow:
+    0 0 0 1px rgba(229, 193, 88, 0.55),
+    0 6px 18px -4px rgba(30, 86, 49, 0.28),
+    0 2px 10px -2px rgba(212, 175, 55, 0.32);
+}
+
+.tema-natal button.bg-\[\#9A3412\]:hover,
+.tema-natal a.bg-\[\#9A3412\]:hover {
+  border-color: var(--natal-dourado-claro);
+  box-shadow:
+    0 0 0 1px rgba(229, 193, 88, 0.58),
+    0 6px 18px -4px rgba(192, 57, 43, 0.3),
+    0 2px 10px -2px rgba(212, 175, 55, 0.34);
+}
+
+.tema-natal button.bg-\[\#14532D\]::after,
+.tema-natal a.bg-\[\#14532D\]::after,
+.tema-natal button.bg-\[\#9A3412\]::after,
+.tema-natal a.bg-\[\#9A3412\]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 25%,
+    rgba(229, 193, 88, 0.24) 50%,
+    transparent 75%
+  );
+  transform: translateX(-120%);
+  transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.tema-natal button.bg-\[\#14532D\]:hover::after,
+.tema-natal a.bg-\[\#14532D\]:hover::after,
+.tema-natal button.bg-\[\#9A3412\]:hover::after,
+.tema-natal a.bg-\[\#9A3412\]:hover::after {
+  transform: translateX(120%);
+}
+
+/* --- 7. Acessibilidade: respeita prefers-reduced-motion ------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .tema-natal .natal-banner {
+    animation: none !important;
+  }
+
+  .tema-natal .natal-snow-layer {
+    display: none !important;
+  }
+
+  .tema-natal .natal-light-bulb,
+  .tema-natal .natal-light-bulb-alt {
+    animation: none !important;
+    opacity: 0.8;
+  }
+
+  .tema-natal button.bg-\[\#14532D\]::after,
+  .tema-natal a.bg-\[\#14532D\]::after,
+  .tema-natal button.bg-\[\#9A3412\]::after,
+  .tema-natal a.bg-\[\#9A3412\]::after {
+    display: none !important;
+  }
+}

@@ -9,6 +9,8 @@ export type AdminTabKey =
   | 'pickups'
   | 'products'
   | 'assisted'
+  | 'notifications'
+  | 'radio'
   | 'reports'
   | 'editais'
   | 'users'
@@ -41,6 +43,8 @@ export const ADMIN_ROLES: Record<AdminRole, AdminRoleDefinition> = {
       'pickups',
       'products',
       'assisted',
+      'notifications',
+      'radio',
       'reports',
       'editais',
       'users',
@@ -64,6 +68,8 @@ export const ADMIN_ROLES: Record<AdminRole, AdminRoleDefinition> = {
       'pickups',
       'products',
       'assisted',
+      'notifications',
+      'radio',
       'reports',
       'editais',
       'corporate',
@@ -118,6 +124,7 @@ export interface AdminUser {
 
 export interface AdminSessionStatus {
   authenticated: boolean;
+  needsAdminSetup?: boolean;
   user?: AdminUser;
   admin?: AdminUser;
   defaultLoginAvailable?: boolean;
@@ -144,40 +151,19 @@ export interface UsersListResponse {
   };
 }
 
-const TOKEN_LOCAL_KEY = 'arsbp_admin_token_local_v1';
-const TOKEN_SESSION_KEY = 'arsbp_admin_token_session_v1';
+// Mantém o token Bearer apenas em memória JS (cookies HttpOnly/Partitioned mantêm a sessão no servidor)
+let inMemoryAuthToken: string | null = null;
 
 export function getStoredAdminToken(): string | null {
-  try {
-    return (
-      window.sessionStorage.getItem(TOKEN_SESSION_KEY) ||
-      window.localStorage.getItem(TOKEN_LOCAL_KEY)
-    );
-  } catch {
-    return null;
-  }
+  return inMemoryAuthToken;
 }
 
-export function setStoredAdminToken(token: string, remember: boolean): void {
-  try {
-    window.sessionStorage.setItem(TOKEN_SESSION_KEY, token);
-    if (remember) {
-      window.localStorage.setItem(TOKEN_LOCAL_KEY, token);
-    } else {
-      window.localStorage.removeItem(TOKEN_LOCAL_KEY);
-    }
-  } catch {
-    // Ignore storage errors
-  }
+export function setStoredAdminToken(token: string, _remember?: boolean): void {
+  inMemoryAuthToken = token;
 }
 
 export function clearStoredAdminToken(): void {
-  try {
-    window.sessionStorage.removeItem(TOKEN_SESSION_KEY);
-    window.localStorage.removeItem(TOKEN_LOCAL_KEY);
-  } catch {
-    // Ignore storage errors
-  }
+  inMemoryAuthToken = null;
 }
 
 function buildAuthHeaders(): HeadersInit {
@@ -185,30 +171,100 @@ function buildAuthHeaders(): HeadersInit {
   return token
     ? {
         'Content-Type': 'application/json',
+        'X-Requested-With': 'ARSBP-Portal',
         Authorization: `Bearer ${token}`,
       }
     : {
         'Content-Type': 'application/json',
+        'X-Requested-With': 'ARSBP-Portal',
       };
 }
 
+async function safeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new Error(
+      'Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.'
+    );
+  }
+}
+
+async function safeParseApiResponse<T>(res: Response): Promise<T> {
+  const rawText = await res.text();
+  const trimmed = rawText.trim();
+
+  if (!trimmed) {
+    if (!res.ok) {
+      throw new Error(`O servidor retornou erro HTTP ${res.status} sem detalhes.`);
+    }
+    return {} as T;
+  }
+
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    if (res.status === 404 || /the page could not be found/i.test(trimmed)) {
+      throw new Error(
+        'O serviço de autenticação (/api) não está disponível neste endereço (Erro 404). Verifique se você está acessando a URL do aplicativo com servidor ativo.'
+      );
+    }
+    throw new Error(
+      `Resposta inesperada do servidor de autenticação (HTTP ${res.status}). Tente novamente em instantes.`
+    );
+  }
+}
+
 export async function fetchAuthSession(): Promise<AdminSessionStatus> {
-  const res = await fetch('/api/auth/me', {
-    method: 'GET',
-    headers: buildAuthHeaders(),
-    credentials: 'same-origin',
-  });
-  if (!res.ok) {
+  try {
+    const res = await safeFetch('/api/auth/me', {
+      method: 'GET',
+      headers: buildAuthHeaders(),
+      credentials: 'same-origin',
+    });
+    if (!res.ok) {
+      return { authenticated: false };
+    }
+    const data = await safeParseApiResponse<AdminSessionStatus>(res);
+    if (!data.authenticated) {
+      clearStoredAdminToken();
+    }
+    return data;
+  } catch {
     return { authenticated: false };
   }
-  const data = (await res.json()) as AdminSessionStatus;
-  if (!data.authenticated) {
-    clearStoredAdminToken();
-  }
-  return data;
 }
 
 export const fetchAdminSession = fetchAuthSession;
+
+export async function setupInitialAdminAccount(input: {
+  nome?: string;
+  email: string;
+  password: string;
+}): Promise<AdminUser> {
+  const res = await safeFetch('/api/auth/setup', {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'same-origin',
+    body: JSON.stringify(input),
+  });
+
+  const data = await safeParseApiResponse<{
+    authenticated?: boolean;
+    token?: string;
+    user?: AdminUser;
+    admin?: AdminUser;
+    error?: string;
+  }>(res);
+
+  const createdAdmin = data.user ?? data.admin;
+  if (!res.ok || !data.authenticated || !createdAdmin || !data.token) {
+    throw new Error(data.error || 'Não foi possível concluir a configuração do administrador.');
+  }
+
+  setStoredAdminToken(data.token);
+  return createdAdmin;
+}
 
 export async function registerUserAccount(
   nome: string,
@@ -216,19 +272,22 @@ export async function registerUserAccount(
   password: string,
   remember = true
 ): Promise<AdminUser> {
-  const res = await fetch('/api/auth/register', {
+  const res = await safeFetch('/api/auth/register', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'ARSBP-Portal',
+    },
     credentials: 'same-origin',
     body: JSON.stringify({ nome, email, password }),
   });
 
-  const data = (await res.json()) as {
+  const data = await safeParseApiResponse<{
     authenticated?: boolean;
     token?: string;
     user?: AdminUser;
     error?: string;
-  };
+  }>(res);
 
   if (!res.ok || !data.authenticated || !data.user || !data.token) {
     throw new Error(data.error || 'Não foi possível concluir o cadastro.');
@@ -243,20 +302,23 @@ export async function loginAdmin(
   password: string,
   remember: boolean
 ): Promise<AdminUser> {
-  const res = await fetch('/api/auth/login', {
+  const res = await safeFetch('/api/auth/login', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'ARSBP-Portal',
+    },
     credentials: 'same-origin',
     body: JSON.stringify({ email, password }),
   });
 
-  const data = (await res.json()) as {
+  const data = await safeParseApiResponse<{
     authenticated?: boolean;
     token?: string;
     user?: AdminUser;
     admin?: AdminUser;
     error?: string;
-  };
+  }>(res);
 
   const loggedUser = data.user ?? data.admin;
   if (!res.ok || !data.authenticated || !loggedUser || !data.token) {
@@ -272,6 +334,9 @@ export async function logoutAdmin(): Promise<void> {
   try {
     await fetch('/api/auth/logout', {
       method: 'POST',
+      headers: {
+        'X-Requested-With': 'ARSBP-Portal',
+      },
       credentials: 'same-origin',
     });
   } catch {
@@ -285,7 +350,7 @@ export async function updateAdminCredentials(input: {
   newPassword?: string;
   displayName?: string;
 }): Promise<AdminUser> {
-  const res = await fetch('/api/auth/credentials', {
+  const res = await safeFetch('/api/auth/credentials', {
     method: 'POST',
     headers: buildAuthHeaders(),
     credentials: 'same-origin',
@@ -295,21 +360,20 @@ export async function updateAdminCredentials(input: {
     }),
   });
 
-  const data = (await res.json()) as {
+  const data = await safeParseApiResponse<{
     authenticated?: boolean;
     token?: string;
     user?: AdminUser;
     admin?: AdminUser;
     error?: string;
-  };
+  }>(res);
 
   const updated = data.user ?? data.admin;
   if (!res.ok || !data.authenticated || !updated || !data.token) {
     throw new Error(data.error || 'Não foi possível atualizar as credenciais.');
   }
 
-  const keepLocal = Boolean(window.localStorage.getItem(TOKEN_LOCAL_KEY));
-  setStoredAdminToken(data.token, keepLocal);
+  setStoredAdminToken(data.token);
   return updated;
 }
 
@@ -327,12 +391,12 @@ export async function fetchAdminUsers(params?: {
   if (params?.page) qs.set('page', String(params.page));
   if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
 
-  const res = await fetch(`/api/admin/users?${qs.toString()}`, {
+  const res = await safeFetch(`/api/admin/users?${qs.toString()}`, {
     method: 'GET',
     headers: buildAuthHeaders(),
     credentials: 'same-origin',
   });
-  const data = (await res.json()) as UsersListResponse & { error?: string };
+  const data = await safeParseApiResponse<UsersListResponse & { error?: string }>(res);
   if (!res.ok) {
     throw new Error(data.error || 'Erro ao carregar usuários cadastrados.');
   }
@@ -346,13 +410,13 @@ export async function createAdminUser(input: {
   role: AdminRole;
   status: UserStatus;
 }): Promise<AdminUser> {
-  const res = await fetch('/api/admin/users', {
+  const res = await safeFetch('/api/admin/users', {
     method: 'POST',
     headers: buildAuthHeaders(),
     credentials: 'same-origin',
     body: JSON.stringify(input),
   });
-  const data = (await res.json()) as { user?: AdminUser; error?: string };
+  const data = await safeParseApiResponse<{ user?: AdminUser; error?: string }>(res);
   if (!res.ok || !data.user) {
     throw new Error(data.error || 'Não foi possível cadastrar o usuário.');
   }
@@ -369,13 +433,13 @@ export async function updateAdminUser(
     newPassword?: string;
   }
 ): Promise<AdminUser> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
+  const res = await safeFetch(`/api/admin/users/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: buildAuthHeaders(),
     credentials: 'same-origin',
     body: JSON.stringify(input),
   });
-  const data = (await res.json()) as { user?: AdminUser; error?: string };
+  const data = await safeParseApiResponse<{ user?: AdminUser; error?: string }>(res);
   if (!res.ok || !data.user) {
     throw new Error(data.error || 'Não foi possível atualizar o usuário.');
   }
@@ -383,12 +447,12 @@ export async function updateAdminUser(
 }
 
 export async function deleteAdminUser(id: string): Promise<void> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
+  const res = await safeFetch(`/api/admin/users/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: buildAuthHeaders(),
     credentials: 'same-origin',
   });
-  const data = (await res.json()) as { ok?: boolean; error?: string };
+  const data = await safeParseApiResponse<{ ok?: boolean; error?: string }>(res);
   if (!res.ok) {
     throw new Error(data.error || 'Não foi possível excluir o usuário.');
   }

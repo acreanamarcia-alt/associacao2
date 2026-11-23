@@ -1,5 +1,6 @@
 import { HeartHandshake, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ChristmasGoldStarAccent } from './ChristmasThemeElements';
 
 interface DonateButtonProps {
   onClick: () => void;
@@ -36,6 +37,7 @@ export function DonateButton({
         <HeartHandshake className="h-4 w-4 shrink-0" aria-hidden="true" />
       )}
       <span>{resolvedLabel}</span>
+      {variant !== 'outline' && <ChristmasGoldStarAccent className="h-2.5 w-2.5 opacity-90" />}
     </button>
   );
 }

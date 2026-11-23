@@ -12,18 +12,19 @@ import {
   User,
   UserPlus,
 } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import {
   AdminUser,
   canEnterAdminPanel,
   loginAdmin,
   registerUserAccount,
+  setupInitialAdminAccount,
 } from '../data/adminAuthClient';
 import { INSTITUTION_PROFILE, OFFICIAL_ASSETS } from '../data/institutionalData';
 import { InstitutionalFooterStrip } from './InstitutionalFooterStrip';
 
 interface AdminLoginScreenProps {
-  defaultLoginAvailable?: boolean;
+  needsAdminSetup?: boolean;
   defaultEmailHint?: string;
   initialMode?: 'login' | 'register';
   onAuthenticated: (user: AdminUser) => void;
@@ -31,17 +32,32 @@ interface AdminLoginScreenProps {
 }
 
 export function AdminLoginScreen({
-  defaultLoginAvailable = false,
-  defaultEmailHint = 'admin@bompastor.org.br',
+  needsAdminSetup = false,
+  defaultEmailHint = 'pastorac@gmail.com',
   initialMode = 'login',
   onAuthenticated,
   onExitAdmin,
 }: AdminLoginScreenProps) {
-  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
+  const [mode, setMode] = useState<'login' | 'register' | 'setup'>(
+    needsAdminSetup ? 'setup' : initialMode
+  );
+
+  // Sync setup mode if session status loads asynchronously
+  useEffect(() => {
+    if (needsAdminSetup) {
+      setMode('setup');
+    }
+  }, [needsAdminSetup]);
 
   // Login fields
-  const [email, setEmail] = useState(defaultLoginAvailable ? defaultEmailHint : '');
+  const [email, setEmail] = useState(defaultEmailHint || 'pastorac@gmail.com');
   const [password, setPassword] = useState('');
+
+  // First-run setup fields
+  const [setupNome, setSetupNome] = useState('Diretoria · Projeto Sopão');
+  const [setupEmail, setSetupEmail] = useState(defaultEmailHint || 'pastorac@gmail.com');
+  const [setupPassword, setSetupPassword] = useState('');
+  const [setupConfirmPassword, setSetupConfirmPassword] = useState('');
 
   // Register fields
   const [regNome, setRegNome] = useState('');
@@ -54,9 +70,8 @@ export function AdminLoginScreen({
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [showFirstAccessHelp, setShowFirstAccessHelp] = useState(false);
 
-  const switchMode = (nextMode: 'login' | 'register') => {
+  const switchMode = (nextMode: 'login' | 'register' | 'setup') => {
     setMode(nextMode);
     setErrorMsg('');
     setSuccessMsg('');
@@ -91,6 +106,49 @@ export function AdminLoginScreen({
         err instanceof Error
           ? err.message
           : 'Não foi possível validar suas credenciais.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSetupSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const cleanNome = setupNome.trim() || 'Diretoria · Projeto Sopão';
+    const cleanEmail = setupEmail.trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setErrorMsg('Informe um endereço de e-mail válido para o administrador.');
+      return;
+    }
+    if (setupPassword.length < 6) {
+      setErrorMsg('A senha do administrador deve possuir no mínimo 6 caracteres.');
+      return;
+    }
+    if (setupPassword !== setupConfirmPassword) {
+      setErrorMsg('A confirmação da senha não confere.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const adminUser = await setupInitialAdminAccount({
+        nome: cleanNome,
+        email: cleanEmail,
+        password: setupPassword,
+      });
+      setSuccessMsg(
+        `Administrador ${adminUser.email} configurado com sucesso! Acessando o Painel Administrativo...`
+      );
+      window.setTimeout(() => onAuthenticated(adminUser), 300);
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível concluir a configuração inicial.'
       );
     } finally {
       setSubmitting(false);
@@ -145,13 +203,6 @@ export function AdminLoginScreen({
     }
   };
 
-  const handleFillInitialCredentials = () => {
-    setMode('login');
-    setEmail(defaultEmailHint || 'admin@bompastor.org.br');
-    setPassword('BomPastor@2026');
-    setErrorMsg('');
-  };
-
   return (
     <div className="flex min-h-screen flex-col bg-[#FBF9F5] text-[#1C1917]">
       {/* Barra superior limpa */}
@@ -185,7 +236,7 @@ export function AdminLoginScreen({
         </div>
       </header>
 
-      {/* Conteúdo central de Login e Cadastro */}
+      {/* Conteúdo central de Login, Setup Inicial e Cadastro */}
       <main className="flex flex-1 items-center justify-center px-6 py-10">
         <div className="w-full max-w-md rounded-xl border border-[#D6CEBE] bg-white p-7 sm:p-9">
           <div className="border-b border-[#E2DDD3] pb-5">
@@ -193,16 +244,39 @@ export function AdminLoginScreen({
               Controle de Acesso RBAC · CNPJ {INSTITUTION_PROFILE.cnpj}
             </p>
             <h1 className="mt-2 font-serif text-2xl font-semibold tracking-tight text-[#1C1917]">
-              {mode === 'login' ? 'Acessar Conta ou Painel' : 'Criar Nova Conta'}
+              {mode === 'setup'
+                ? 'Configurar Acesso do Administrador'
+                : mode === 'login'
+                  ? 'Acessar Conta ou Painel'
+                  : 'Criar Nova Conta'}
             </h1>
             <p className="mt-1.5 text-sm leading-relaxed text-[#57534E]">
-              {mode === 'login'
-                ? 'Administradores e gerentes acessam o painel completo; usuários padrão são direcionados ao portal com sua conta ativa.'
-                : 'Cadastre-se gratuitamente para acompanhar sua conta. Novas contas iniciam com o nível Usuário Padrão.'}
+              {mode === 'setup'
+                ? `Primeiro acesso administrativo: defina a senha segura para o e-mail ${defaultEmailHint || 'pastorac@gmail.com'} assumir o Painel Administrativo.`
+                : mode === 'login'
+                  ? 'Administradores e gerentes acessam o painel completo; usuários padrão são direcionados ao portal com sua conta ativa.'
+                  : 'Cadastre-se gratuitamente para acompanhar sua conta. Novas contas iniciam com o nível Usuário Padrão.'}
             </p>
 
-            {/* Alternador de Modo Login / Cadastro */}
-            <div className="mt-5 grid grid-cols-2 gap-1 rounded-lg bg-[#F4F0E8] p-1">
+            {/* Alternador de Modo */}
+            <div
+              className={`mt-5 grid gap-1 rounded-lg bg-[#F4F0E8] p-1 ${
+                needsAdminSetup ? 'grid-cols-3' : 'grid-cols-2'
+              }`}
+            >
+              {needsAdminSetup && (
+                <button
+                  type="button"
+                  onClick={() => switchMode('setup')}
+                  className={`min-h-[38px] cursor-pointer rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
+                    mode === 'setup'
+                      ? 'bg-white text-[#14532D] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
+                  }`}
+                >
+                  Configurar Admin
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => switchMode('login')}
@@ -251,7 +325,133 @@ export function AdminLoginScreen({
             </div>
           )}
 
-          {mode === 'login' ? (
+          {mode === 'setup' ? (
+            <form onSubmit={handleSetupSubmit} className="mt-5 space-y-4" noValidate>
+              <div>
+                <label
+                  htmlFor="auth-setup-nome"
+                  className="block text-xs font-semibold text-[#1C1917]"
+                >
+                  Nome do Administrador
+                </label>
+                <div className="relative mt-1.5">
+                  <User
+                    className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#78716C]"
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="auth-setup-nome"
+                    type="text"
+                    autoComplete="name"
+                    value={setupNome}
+                    onChange={(e) => setSetupNome(e.target.value)}
+                    placeholder="Diretoria · Projeto Sopão"
+                    className="min-h-[44px] w-full rounded-md border border-[#D6CEBE] bg-[#FBF9F5] pr-3.5 pl-10 text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:border-[#14532D] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#14532D]/15"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="auth-setup-email"
+                  className="block text-xs font-semibold text-[#1C1917]"
+                >
+                  E-mail Administrativo
+                </label>
+                <div className="relative mt-1.5">
+                  <Mail
+                    className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#78716C]"
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="auth-setup-email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={setupEmail}
+                    onChange={(e) => setSetupEmail(e.target.value)}
+                    placeholder="pastorac@gmail.com"
+                    className="min-h-[44px] w-full rounded-md border border-[#D6CEBE] bg-[#FBF9F5] pr-3.5 pl-10 text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:border-[#14532D] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#14532D]/15"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="auth-setup-password"
+                    className="block text-xs font-semibold text-[#1C1917]"
+                  >
+                    Definir Senha *
+                  </label>
+                  <input
+                    id="auth-setup-password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    required
+                    value={setupPassword}
+                    onChange={(e) => setSetupPassword(e.target.value)}
+                    placeholder="Mín. 6 caracteres"
+                    className="mt-1.5 min-h-[44px] w-full rounded-md border border-[#D6CEBE] bg-[#FBF9F5] px-3.5 text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:border-[#14532D] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#14532D]/15"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="auth-setup-confirm"
+                    className="block text-xs font-semibold text-[#1C1917]"
+                  >
+                    Confirmar Senha *
+                  </label>
+                  <input
+                    id="auth-setup-confirm"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    required
+                    value={setupConfirmPassword}
+                    onChange={(e) => setSetupConfirmPassword(e.target.value)}
+                    placeholder="Repita a senha"
+                    className="mt-1.5 min-h-[44px] w-full rounded-md border border-[#D6CEBE] bg-[#FBF9F5] px-3.5 text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:border-[#14532D] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#14532D]/15"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 text-xs text-[#44403C]">
+                <label className="inline-flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={showPassword}
+                    onChange={(e) => setShowPassword(e.target.checked)}
+                    className="h-4 w-4 rounded border-[#D6CEBE] accent-[#14532D]"
+                  />
+                  <span>Mostrar senhas</span>
+                </label>
+
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#14532D]">
+                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Nível: admin</span>
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="mt-2 flex min-h-[46px] w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#14532D] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0F3F22] disabled:cursor-not-allowed disabled:opacity-65"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <span>Configurando Administrador...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                    <span>Salvar Senha e Acessar Painel</span>
+                  </>
+                )}
+              </button>
+            </form>
+          ) : mode === 'login' ? (
             <form onSubmit={handleLoginSubmit} className="mt-5 space-y-4" noValidate>
               <div>
                 <label
@@ -272,7 +472,7 @@ export function AdminLoginScreen({
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seuemail@bompastor.org.br"
+                    placeholder={defaultEmailHint || 'pastorac@gmail.com'}
                     className="min-h-[44px] w-full rounded-md border border-[#D6CEBE] bg-[#FBF9F5] pr-3.5 pl-10 text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:border-[#14532D] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#14532D]/15"
                   />
                 </div>
@@ -472,40 +672,6 @@ export function AdminLoginScreen({
                 )}
               </button>
             </form>
-          )}
-
-          {defaultLoginAvailable && mode === 'login' && (
-            <div className="mt-6 border-t border-[#E2DDD3] pt-4">
-              <button
-                type="button"
-                onClick={() => setShowFirstAccessHelp((prev) => !prev)}
-                className="cursor-pointer text-xs font-semibold text-[#14532D] hover:underline"
-              >
-                {showFirstAccessHelp
-                  ? 'Ocultar instruções de primeiro acesso'
-                  : 'Primeiro acesso? Consultar credenciais iniciais do administrador'}
-              </button>
-
-              {showFirstAccessHelp && (
-                <div className="mt-3 space-y-2 rounded-md border border-[#E2DDD3] bg-[#FBF9F5] p-3.5 text-xs text-[#44403C]">
-                  <p className="font-semibold text-[#1C1917]">
-                    Credenciais iniciais de Administrador (altere após entrar na aba Dados
-                    Corporativos):
-                  </p>
-                  <div className="space-y-1 font-mono text-[11px] tabular-nums text-[#1C1917]">
-                    <p>E-mail: {defaultEmailHint || 'admin@bompastor.org.br'}</p>
-                    <p>Senha padrão: BomPastor@2026</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleFillInitialCredentials}
-                    className="inline-flex cursor-pointer items-center rounded border border-[#14532D]/30 bg-white px-2.5 py-1 text-[11px] font-semibold text-[#14532D] hover:bg-[#14532D]/5"
-                  >
-                    Preencher campos automaticamente
-                  </button>
-                </div>
-              )}
-            </div>
           )}
         </div>
       </main>

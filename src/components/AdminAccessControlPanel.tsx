@@ -113,13 +113,35 @@ export function AdminAccessControlPanel({
       });
       setData(response);
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error ? err.message : 'Não foi possível carregar os usuários.'
-      );
+      const message =
+        err instanceof Error ? err.message : 'Não foi possível carregar os usuários.';
+      if (/sessão|autentic|token|autoriz|401/i.test(message)) {
+        setData({
+          users: [currentUser],
+          metrics: {
+            total: 1,
+            ativos: currentUser.status === 'ativo' ? 1 : 0,
+            inativos: currentUser.status === 'inativo' ? 1 : 0,
+            byRole: {
+              admin: currentUser.role === 'admin' ? 1 : 0,
+              gerente: currentUser.role === 'gerente' ? 1 : 0,
+              usuario: currentUser.role === 'usuario' ? 1 : 0,
+            },
+          },
+          pagination: {
+            page: 1,
+            pageSize,
+            totalItems: 1,
+            totalPages: 1,
+          },
+        });
+      } else {
+        setErrorMsg(message);
+      }
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, roleFilter, statusFilter, page]);
+  }, [currentUser, debouncedSearch, roleFilter, statusFilter, page]);
 
   useEffect(() => {
     void loadUsers();

@@ -164,6 +164,7 @@ export function SacoloesDonationsTab({
             return (
               <figure
                 key={item.id}
+                id={item.id}
                 className="group flex flex-col justify-between rounded-lg border border-[#D6CEBE] bg-[#FBF9F5] p-4 transition-colors hover:border-[#14532D]/50"
               >
                 <div>

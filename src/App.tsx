@@ -1,13 +1,18 @@
-import { ArrowLeft, CheckCircle2, Loader2, LogOut, ShieldAlert, X } from 'lucide-react';
+import { CheckCircle2, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { AccountProfileModal } from './components/AccountProfileModal';
-import { AdminDashboard } from './components/AdminDashboard';
-import { AdminLoginScreen } from './components/AdminLoginScreen';
+import { AdminDashboard, AdminTab } from './components/AdminDashboard';
+import {
+  ChristmasGreetingBanner,
+  ChristmasSectionDivider,
+  ChristmasSnowfall,
+} from './components/ChristmasThemeElements';
 import {
   CommunityIntelligenceSection,
   IntelligenceTab,
   StudioPresetImage,
 } from './components/CommunityIntelligenceSection';
+import { CHRISTMAS_ROOT_CLASS, CHRISTMAS_THEME_ENABLED } from './config/christmasTheme';
 import { DonationModal } from './components/DonationModal';
 import { DonationSection } from './components/DonationSection';
 import { EbookModal } from './components/EbookModal';
@@ -18,27 +23,38 @@ import { HeroSection } from './components/HeroSection';
 import { HistoryAndTransparency } from './components/HistoryAndTransparency';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { ProductionGallery } from './components/ProductionGallery';
+import { RadioBoasNovasBanner } from './components/RadioBoasNovasBanner';
 import { TestimonialsSection } from './components/TestimonialsSection';
 import { VolunteerHub } from './components/VolunteerHub';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import {
   AdminUser,
-  canEnterAdminPanel,
   fetchAdminSession,
-  getRoleDefinition,
   logoutAdmin,
 } from './data/adminAuthClient';
 import type { DocumentaryFigure } from './data/institutionalData';
 import { useVisitorStats } from './data/visitorStore';
 import { useLanguage } from './i18n/LanguageContext';
 
+const OPEN_ADMIN_USER: AdminUser = {
+  id: 'usr-admin-root',
+  nome: 'Diretoria · Projeto Sopão',
+  displayName: 'Diretoria · Projeto Sopão',
+  email: 'pastorac@gmail.com',
+  role: 'admin',
+  status: 'ativo',
+  active: true,
+  isDefaultPassword: false,
+  createdAt: '',
+  updatedAt: '',
+  lastLoginAt: null,
+};
+
 export default function App() {
   const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<'portal' | 'admin'>('portal');
+  const [requestedAdminTab, setRequestedAdminTab] = useState<AdminTab | undefined>(undefined);
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
-  const [authChecking, setAuthChecking] = useState(true);
-  const [defaultLoginAvailable, setDefaultLoginAvailable] = useState(false);
-  const [defaultEmailHint, setDefaultEmailHint] = useState<string | undefined>(undefined);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [portalAuthNotice, setPortalAuthNotice] = useState<string | null>(null);
 
@@ -52,7 +68,6 @@ export default function App() {
   const { stats: visitorStats } = useVisitorStats({ trackHit: true });
 
   const checkAdminSession = useCallback(async () => {
-    setAuthChecking(true);
     try {
       const status = await fetchAdminSession();
       const sessionUser = status.user ?? status.admin ?? null;
@@ -61,37 +76,33 @@ export default function App() {
       } else {
         setAdminUser(null);
       }
-      setDefaultLoginAvailable(Boolean(status.defaultLoginAvailable));
-      setDefaultEmailHint(status.defaultEmailHint);
     } catch {
       setAdminUser(null);
-    } finally {
-      setAuthChecking(false);
     }
   }, []);
 
-  // Restaura sessão JWT ao carregar e revalida ao abrir o painel
+  // Restaura sessão opcional ao carregar
   useEffect(() => {
     void checkAdminSession();
   }, [checkAdminSession]);
 
+  // Ativa/desativa a classe global .tema-natal no elemento raiz
+  useEffect(() => {
+    if (CHRISTMAS_THEME_ENABLED) {
+      document.documentElement.classList.add(CHRISTMAS_ROOT_CLASS);
+    } else {
+      document.documentElement.classList.remove(CHRISTMAS_ROOT_CLASS);
+    }
+  }, []);
+
   const handleOpenAdmin = () => {
+    setRequestedAdminTab(undefined);
     setViewMode('admin');
-    void checkAdminSession();
   };
 
-  // Redirecionamento inteligente pós-login/cadastro baseado no nível de acesso (RBAC)
-  const handleAuthenticated = (user: AdminUser) => {
-    setAdminUser(user);
-    if (canEnterAdminPanel(user.role)) {
-      setPortalAuthNotice(null);
-      setViewMode('admin');
-    } else {
-      setViewMode('portal');
-      setPortalAuthNotice(
-        `Bem-vindo(a), ${user.nome}! Você entrou com o perfil ${getRoleDefinition(user.role).shortLabel}.`
-      );
-    }
+  const handleOpenAdminRadio = () => {
+    setRequestedAdminTab('radio');
+    setViewMode('admin');
   };
 
   const handleAdminLogout = async () => {
@@ -131,84 +142,17 @@ export default function App() {
   }, []);
 
   if (viewMode === 'admin') {
-    if (authChecking && !adminUser) {
-      return (
-        <>
-          <div className="flex min-h-screen flex-col items-center justify-center bg-[#FBF9F5] px-6 text-[#1C1917]">
-            <Loader2 className="h-7 w-7 animate-spin text-[#14532D]" aria-hidden="true" />
-            <p className="mt-3 text-sm font-medium text-[#57534E]">
-              Verificando sessão e permissões de acesso...
-            </p>
-          </div>
-          <OfflineIndicator />
-        </>
-      );
-    }
-
-    if (!adminUser) {
-      return (
-        <>
-          <AdminLoginScreen
-            defaultLoginAvailable={defaultLoginAvailable}
-            defaultEmailHint={defaultEmailHint}
-            onAuthenticated={handleAuthenticated}
-            onExitAdmin={() => setViewMode('portal')}
-          />
-          <OfflineIndicator />
-        </>
-      );
-    }
-
-    // Proteção de rota no frontend: bloqueia role "usuario" de entrar no Painel Administrativo
-    if (!canEnterAdminPanel(adminUser.role)) {
-      return (
-        <>
-          <div className="flex min-h-screen flex-col items-center justify-center bg-[#FBF9F5] px-6 text-[#1C1917]">
-            <div className="w-full max-w-md rounded-xl border border-[#D6CEBE] bg-white p-8 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#9A3412]/30 bg-[#FEF2F2] text-[#9A3412]">
-                <ShieldAlert className="h-6 w-6" aria-hidden="true" />
-              </div>
-              <h1 className="mt-4 font-serif text-xl font-semibold text-[#1C1917]">
-                Acesso Restrito à Administração
-              </h1>
-              <p className="mt-2 text-xs leading-relaxed text-[#57534E]">
-                A conta <span className="font-mono font-medium">{adminUser.email}</span> está
-                cadastrada com o nível <strong>Usuário Padrão (usuario)</strong>, que possui acesso
-                apenas ao portal público e aos próprios dados.
-              </p>
-
-              <div className="mt-6 flex flex-col gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('portal')}
-                  className="inline-flex min-h-[42px] w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#14532D] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0F3F22]"
-                >
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  <span>Voltar ao Portal Público</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAdminLogout}
-                  className="inline-flex min-h-[42px] w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-[#D6CEBE] bg-white px-4 py-2 text-xs font-semibold text-[#1C1917] hover:bg-[#F4F0E8]"
-                >
-                  <LogOut className="h-4 w-4" aria-hidden="true" />
-                  <span>Sair e entrar com conta administrativa</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <OfflineIndicator />
-        </>
-      );
-    }
-
     return (
       <>
         <AdminDashboard
-          adminUser={adminUser}
-          onLogout={handleAdminLogout}
+          adminUser={adminUser ?? OPEN_ADMIN_USER}
+          initialTab={requestedAdminTab}
+          onLogout={adminUser ? handleAdminLogout : undefined}
           onAdminUpdated={(updated) => setAdminUser(updated)}
-          onExitAdmin={() => setViewMode('portal')}
+          onExitAdmin={() => {
+            setRequestedAdminTab(undefined);
+            setViewMode('portal');
+          }}
         />
         <OfflineIndicator />
       </>
@@ -217,6 +161,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FBF9F5] text-[#1C1917]">
+      <ChristmasSnowfall />
+      <ChristmasGreetingBanner />
       <Header
         authUser={adminUser}
         onOpenAdmin={handleOpenAdmin}
@@ -268,22 +214,31 @@ export default function App() {
           totalVisits={visitorStats.totalVisits}
           uniqueVisitors={visitorStats.uniqueVisitors}
         />
+        <ChristmasSectionDivider />
+        <RadioBoasNovasBanner onOpenAdminRadio={handleOpenAdminRadio} />
+        <ChristmasSectionDivider />
         <VolunteerHub />
+        <ChristmasSectionDivider />
         <DonationSection
           onOpenDonateModal={openDonateModal}
           onOpenAdmin={handleOpenAdmin}
         />
+        <ChristmasSectionDivider />
         <ProductionGallery onEditInStudio={handleEditFigureInStudio} />
+        <ChristmasSectionDivider />
         <TestimonialsSection />
+        <ChristmasSectionDivider />
         <FaqSection
           onOpenDonate={openDonateModal}
           onJumpToVolunteer={handleJumpToVolunteer}
         />
+        <ChristmasSectionDivider />
         <CommunityIntelligenceSection
           requestedTab={requestedTab}
           requestedImage={requestedImage}
           onClearRequestedImage={clearRequestedImage}
         />
+        <ChristmasSectionDivider />
         <HistoryAndTransparency
           onOpenEbook={() => {
             setEbookMode('viewer');

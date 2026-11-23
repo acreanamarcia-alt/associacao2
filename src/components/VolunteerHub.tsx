@@ -1,4 +1,12 @@
-import { ArrowUpRight, CheckCircle2, Search, Trash2, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  BellRing,
+  CheckCircle2,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { formatCpf } from '../data/assistedPeopleStore';
 import {
@@ -6,8 +14,13 @@ import {
   VOLUNTEER_ROLES,
   VolunteerRole,
 } from '../data/institutionalData';
+import { useVolunteerAlertsStore } from '../data/volunteerAlertsStore';
 import { useVolunteersStore } from '../data/volunteersStore';
 import { useLanguage } from '../i18n/LanguageContext';
+import {
+  getPwaNotificationSupport,
+  requestPwaNotificationPermission,
+} from '../utils/pwaNotifications';
 import { InstitutionalFooterStrip } from './InstitutionalFooterStrip';
 
 const CATEGORIES: Array<'Todas' | VolunteerRole['category']> = [
@@ -36,6 +49,28 @@ export function VolunteerHub() {
   const [showMyApplications, setShowMyApplications] = useState(false);
 
   const { applications, addApplication, removeApplication } = useVolunteersStore();
+  const {
+    alerts: pwaAlerts,
+    settings: pwaSettings,
+    unreadCount: unreadAlertsCount,
+    updateSettings: updatePwaSettings,
+    markAllRead: markAllAlertsRead,
+  } = useVolunteerAlertsStore();
+  const [pwaPermission, setPwaPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
+
+  useEffect(() => {
+    void getPwaNotificationSupport().then((info) => {
+      setPwaPermission(info.permission);
+    });
+  }, []);
+
+  const handleEnableVolunteerAlerts = async () => {
+    const result = await requestPwaNotificationPermission();
+    setPwaPermission(result);
+    if (result === 'granted') {
+      updatePwaSettings({ volunteerOptInEnabled: true });
+    }
+  };
 
   const [fullName, setFullName] = useState('');
   const [cpf, setCpf] = useState('');
@@ -163,6 +198,23 @@ export function VolunteerHub() {
               </p>
             </div>
 
+            <button
+              type="button"
+              onClick={() => void handleEnableVolunteerAlerts()}
+              className={`inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border px-4 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                pwaPermission === 'granted' && pwaSettings.volunteerOptInEnabled
+                  ? 'border-[#14532D]/30 bg-[#F0FDF4] text-[#14532D]'
+                  : 'border-[#D6CEBE] bg-white text-[#1C1917] hover:border-[#14532D] hover:text-[#14532D]'
+              }`}
+            >
+              <BellRing className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>
+                {pwaPermission === 'granted' && pwaSettings.volunteerOptInEnabled
+                  ? t.volunteer.pwaAlertsActive
+                  : t.volunteer.pwaAlertsEnable}
+              </span>
+            </button>
+
             {applications.length > 0 && (
               <button
                 type="button"
@@ -175,6 +227,64 @@ export function VolunteerHub() {
             )}
           </div>
         </div>
+
+        {/* Active Coordination PWA Alerts Feed (only rendered when admin dispatched alerts) */}
+        {pwaAlerts.length > 0 && unreadAlertsCount > 0 && (
+          <div className="mt-6 rounded-lg border border-[#D6CEBE] bg-white p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EFEBE3] pb-3">
+              <div className="flex items-center gap-2">
+                <BellRing className="h-4 w-4 text-[#14532D]" aria-hidden="true" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#14532D]">
+                  {t.volunteer.pwaAlertsFeedTitle} ({unreadAlertsCount})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={markAllAlertsRead}
+                className="cursor-pointer text-xs font-medium text-[#57534E] hover:text-[#1C1917] hover:underline"
+              >
+                {t.volunteer.pwaAlertsMarkRead}
+              </button>
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+              {pwaAlerts
+                .filter((a) => !a.readByVolunteer)
+                .slice(0, 4)
+                .map((alert) => {
+                  const isEmergency = alert.category === 'stock_emergency';
+                  return (
+                    <div
+                      key={alert.id}
+                      className={`rounded-md border p-3.5 text-xs ${
+                        isEmergency
+                          ? 'border-[#9A3412]/30 bg-[#FFF7ED]'
+                          : 'border-[#14532D]/20 bg-[#F0FDF4]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1 font-semibold ${
+                            isEmergency ? 'text-[#9A3412]' : 'text-[#14532D]'
+                          }`}
+                        >
+                          {isEmergency ? (
+                            <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                          ) : (
+                            <BellRing className="h-3.5 w-3.5" aria-hidden="true" />
+                          )}
+                          <span>{alert.title}</span>
+                        </span>
+                        <span className="font-mono text-[10px] text-[#78716C]">
+                          {alert.createdAt}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 leading-relaxed text-[#292524]">{alert.message}</p>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
 
         {/* Filter Bar */}
         <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

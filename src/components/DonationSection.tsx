@@ -19,6 +19,10 @@ import {
   useDonationsStore,
 } from '../data/donationsStore';
 import { SACOLOES_GALLERY_ITEMS } from '../data/institutionalData';
+import {
+  SITE_SEARCH_NAV_EVENT,
+  SiteSearchNavigationDetail,
+} from '../data/siteSearchIndex';
 import { useLanguage } from '../i18n/LanguageContext';
 import { DonateButton } from './DonateButton';
 import { SacoloesDonationsTab } from './SacoloesDonationsTab';
@@ -55,11 +59,19 @@ export function DonationSection({ onOpenDonateModal, onOpenAdmin }: DonationSect
         setActiveTab('sacoloes');
       }
     };
+    const handleSearchNav = (event: Event) => {
+      const custom = event as CustomEvent<SiteSearchNavigationDetail>;
+      if (custom.detail?.item?.sectionId === 'sacoloes') {
+        setActiveTab('sacoloes');
+      }
+    };
     syncFromHash();
     window.addEventListener('hashchange', syncFromHash);
+    window.addEventListener(SITE_SEARCH_NAV_EVENT, handleSearchNav);
     document.addEventListener('click', handleAnchorClick);
     return () => {
       window.removeEventListener('hashchange', syncFromHash);
+      window.removeEventListener(SITE_SEARCH_NAV_EVENT, handleSearchNav);
       document.removeEventListener('click', handleAnchorClick);
     };
   }, []);

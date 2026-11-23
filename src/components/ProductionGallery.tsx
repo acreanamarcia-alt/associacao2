@@ -1,6 +1,10 @@
 import { ChevronLeft, ChevronRight, ImagePlus, Maximize2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { DOCUMENTARY_FIGURES, DocumentaryFigure } from '../data/institutionalData';
+import {
+  SITE_SEARCH_NAV_EVENT,
+  SiteSearchNavigationDetail,
+} from '../data/siteSearchIndex';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface ProductionGalleryProps {
@@ -21,6 +25,18 @@ export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {
     'Todos os registros'
   );
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleSearchNav = (event: Event) => {
+      const custom = event as CustomEvent<SiteSearchNavigationDetail>;
+      if (custom.detail?.item?.sectionId === 'producao') {
+        setFilter('Todos os registros');
+        setSelectedIndex(null);
+      }
+    };
+    window.addEventListener(SITE_SEARCH_NAV_EVENT, handleSearchNav);
+    return () => window.removeEventListener(SITE_SEARCH_NAV_EVENT, handleSearchNav);
+  }, []);
 
   const visibleFigures = useMemo(() => {
     if (filter === 'Todos os registros') return DOCUMENTARY_FIGURES;
@@ -96,6 +112,7 @@ export function ProductionGallery({ onEditInStudio }: ProductionGalleryProps) {
           {visibleFigures.map((fig, index) => (
             <figure
               key={fig.id}
+              id={`gallery-${fig.id}`}
               className="group flex flex-col justify-between rounded-lg border border-[#D6CEBE] bg-white p-4 transition-colors hover:border-[#14532D]/50"
             >
               <div>

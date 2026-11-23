@@ -1,5 +1,5 @@
 import { ArrowUpRight, BookOpen, MapPin, Volume2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   INSTITUTIONAL_CHAPTERS,
   INSTITUTION_PROFILE,
@@ -7,6 +7,10 @@ import {
   OFFICIAL_ASSETS,
   TIMELINE_EVENTS,
 } from '../data/institutionalData';
+import {
+  SITE_SEARCH_NAV_EVENT,
+  SiteSearchNavigationDetail,
+} from '../data/siteSearchIndex';
 import { useLanguage } from '../i18n/LanguageContext';
 import { PdfAudioReader } from './PdfAudioReader';
 
@@ -17,6 +21,18 @@ interface HistoryAndTransparencyProps {
 export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyProps) {
   const [activeChapterId, setActiveChapterId] = useState(INSTITUTIONAL_CHAPTERS[0].id);
   const { t } = useLanguage();
+
+  useEffect(() => {
+    const handleSearchNav = (event: Event) => {
+      const custom = event as CustomEvent<SiteSearchNavigationDetail>;
+      const chapterId = custom.detail?.item?.chapterId;
+      if (chapterId) {
+        setActiveChapterId(chapterId);
+      }
+    };
+    window.addEventListener(SITE_SEARCH_NAV_EVENT, handleSearchNav);
+    return () => window.removeEventListener(SITE_SEARCH_NAV_EVENT, handleSearchNav);
+  }, []);
 
   const activeChapter =
     INSTITUTIONAL_CHAPTERS.find((c) => c.id === activeChapterId) ?? INSTITUTIONAL_CHAPTERS[0];
@@ -181,10 +197,11 @@ export function HistoryAndTransparency({ onOpenEbook }: HistoryAndTransparencyPr
               </h2>
 
               <div className="mt-8 divide-y divide-[#E2DDD3] border-y border-[#E2DDD3]">
-                {TIMELINE_EVENTS.map((event) => (
+                {TIMELINE_EVENTS.map((event, index) => (
                   <div
                     key={event.date}
-                    className="grid grid-cols-1 gap-3 py-5 sm:grid-cols-12 sm:gap-6"
+                    id={`timeline-event-${index + 1}`}
+                    className="grid grid-cols-1 gap-3 rounded-sm px-2 py-5 sm:grid-cols-12 sm:gap-6"
                   >
                     <div className="sm:col-span-3">
                       <p className="font-mono text-sm font-medium tabular-nums text-[#14532D]">

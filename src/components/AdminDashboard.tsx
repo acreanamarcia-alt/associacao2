@@ -1,6 +1,8 @@
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowUpRight,
+  BellRing,
   BookMarked,
   Building2,
   CalendarClock,
@@ -18,6 +20,7 @@ import {
   MessageCircle,
   Package,
   Plus,
+  Radio,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -65,6 +68,11 @@ import {
   updateAdminCredentials,
 } from '../data/adminAuthClient';
 import { useVisitorStats } from '../data/visitorStore';
+import {
+  getCriticalStockProducts,
+  useVolunteerAlertsStore,
+  VolunteerAlertCategory,
+} from '../data/volunteerAlertsStore';
 import { useVolunteersStore } from '../data/volunteersStore';
 import {
   DashboardPdfCategories,
@@ -76,20 +84,15 @@ import {
 } from '../utils/dashboardPdfReport';
 import { AdminAccessControlPanel } from './AdminAccessControlPanel';
 import { AdminGlobalSearchBar } from './AdminGlobalSearchBar';
+import { AdminRadioBannerPanel } from './AdminRadioBannerPanel';
 import { DashboardReportPrintable } from './DashboardReportPrintable';
 import { EditaisCollectorPanel } from './EditaisCollectorPanel';
 import { InstitutionalFooterStrip } from './InstitutionalFooterStrip';
 import { MonthlyDonationsChart } from './MonthlyDonationsChart';
 import { PWAInstallButton } from './PWAInstallButton';
+import { PwaNotificationsPanel } from './PwaNotificationsPanel';
 
-interface AdminDashboardProps {
-  onExitAdmin: () => void;
-  adminUser?: AdminUser | null;
-  onLogout?: () => void;
-  onAdminUpdated?: (user: AdminUser) => void;
-}
-
-type AdminTab =
+export type AdminTab =
   | 'overview'
   | 'receipts'
   | 'monthly-donors'
@@ -97,16 +100,27 @@ type AdminTab =
   | 'pickups'
   | 'products'
   | 'assisted'
+  | 'notifications'
+  | 'radio'
   | 'reports'
   | 'editais'
   | 'users'
   | 'corporate';
+
+interface AdminDashboardProps {
+  onExitAdmin: () => void;
+  adminUser?: AdminUser | null;
+  onLogout?: () => void;
+  onAdminUpdated?: (user: AdminUser) => void;
+  initialTab?: AdminTab;
+}
 
 export function AdminDashboard({
   onExitAdmin,
   adminUser,
   onLogout,
   onAdminUpdated,
+  initialTab,
 }: AdminDashboardProps) {
   const {
     products,
@@ -139,9 +153,25 @@ export function AdminDashboard({
   } = useAssistedPeopleStore();
   const { applications: volunteerApplications, removeApplication } = useVolunteersStore();
   const { stats: visitorStats } = useVisitorStats();
+  const {
+    alerts: pwaAlerts,
+    settings: pwaAlertSettings,
+    dispatchAlert: dispatchPwaAlert,
+    resendAlert: resendPwaAlert,
+    removeAlert: removePwaAlert,
+    clearAlerts: clearPwaAlerts,
+    updateSettings: updatePwaAlertSettings,
+  } = useVolunteerAlertsStore();
 
   const roleDef = getRoleDefinition(adminUser?.role);
-  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab ?? 'overview');
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+  const [notificationInitialMode, setNotificationInitialMode] =
+    useState<VolunteerAlertCategory>('work_shift');
   const safeActiveTab: AdminTab = hasTabAccess(adminUser?.role, activeTab)
     ? activeTab
     : 'overview';
@@ -153,7 +183,7 @@ export function AdminDashboard({
   // Security & Credentials state
   const [secCurrentPassword, setSecCurrentPassword] = useState('');
   const [secNewEmail, setSecNewEmail] = useState(
-    adminUser?.email ?? 'admin@bompastor.org.br'
+    adminUser?.email ?? 'pastorac@gmail.com'
   );
   const [secDisplayName, setSecDisplayName] = useState(
     adminUser?.nome ?? adminUser?.displayName ?? 'Diretoria · Projeto Sopão'
@@ -407,6 +437,59 @@ export function AdminDashboard({
     () => pickups.filter((p) => p.status === 'Coletada').length,
     [pickups]
   );
+
+  const criticalStockProducts = useMemo(
+    () => getCriticalStockProducts(products, pwaAlertSettings.criticalStockThresholdPct),
+    [products, pwaAlertSettings.criticalStockThresholdPct]
+  );
+
+  const openNotificationsTab = (mode: VolunteerAlertCategory) => {
+    setNotificationInitialMode(mode);
+    setActiveTab('notifications');
+  };
+
+  useEffect(() => {
+    if (!pwaAlertSettings.autoStockEmergencyEnabled) return;
+    if (criticalStockProducts.length === 0) return;
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (window.Notification.permission !== 'granted') return;
+
+    const signature = criticalStockProducts
+      .map((item) => `${item.product.id}:${item.product.receivedQty}`)
+      .join('|');
+
+    if (signature === pwaAlertSettings.lastAutoAlertSignature) return;
+
+    updatePwaAlertSettings({ lastAutoAlertSignature: signature });
+
+    const topItems = criticalStockProducts.slice(0, 4).map(
+      (c) => `${c.product.name} (${c.product.receivedQty}/${c.product.targetQty} ${c.product.unit})`
+    );
+    const extraCount =
+      criticalStockProducts.length > 4 ? ` e +${criticalStockProducts.length - 4} item(ns)` : '';
+
+    void dispatchPwaAlert({
+      category: 'stock_emergency',
+      priority: 'critica',
+      title: `Emergência de Estoque (${criticalStockProducts.length} item(ns) crítico(s))`,
+      message: `Estoque abaixo de ${pwaAlertSettings.criticalStockThresholdPct}% da meta: ${topItems.join(', ')}${extraCount}. Apoio urgente na sede do Bairro Olaria.`,
+      affectedItems: topItems,
+      location: INSTITUTION_PROFILE.address,
+      targetAudienceLabel: 'Todos os voluntários e equipe de captação',
+      targetVolunteersCount: volunteerApplications.length,
+      createdBy: adminUser?.nome || adminUser?.displayName || 'Monitoramento Automático',
+    });
+  }, [
+    pwaAlertSettings.autoStockEmergencyEnabled,
+    pwaAlertSettings.criticalStockThresholdPct,
+    pwaAlertSettings.lastAutoAlertSignature,
+    criticalStockProducts,
+    volunteerApplications.length,
+    adminUser?.nome,
+    adminUser?.displayName,
+    updatePwaAlertSettings,
+    dispatchPwaAlert,
+  ]);
 
   const handleDownloadPdf = async (
     customCategories?: DashboardPdfCategories,
@@ -784,6 +867,8 @@ export function AdminDashboard({
     pickups: 'Agendamento de Coleta de Doações',
     products: 'Lista de Produtos para Recebimento',
     assisted: 'Cadastro de Pessoas Assistidas',
+    notifications: 'Notificações PWA aos Voluntários',
+    radio: 'Rádio Boas Novas FM 96,3 · Banner e Link',
     reports: 'Relatórios em PDF do Dashboard',
     editais: 'Coleta de Editais (CNAE & TJAC)',
     users: 'Usuários & Níveis de Acesso (RBAC)',
@@ -945,6 +1030,53 @@ export function AdminDashboard({
                 <span className="font-mono text-[11px] tabular-nums opacity-80">
                   {assistedPeople.length}
                 </span>
+              </button>
+            )}
+
+            {hasTabAccess(adminUser?.role, 'notifications') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('notifications')}
+                className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'notifications'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <BellRing className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Alertas PWA</span>
+                </span>
+                {criticalStockProducts.length > 0 ? (
+                  <span
+                    className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tabular-nums ${
+                      safeActiveTab === 'notifications'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#FEF2F2] text-[#9A3412]'
+                    }`}
+                  >
+                    {criticalStockProducts.length}
+                  </span>
+                ) : (
+                  <span className="font-mono text-[11px] tabular-nums opacity-80">
+                    {pwaAlerts.length}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {hasTabAccess(adminUser?.role, 'radio') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('radio')}
+                className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                  safeActiveTab === 'radio'
+                    ? 'bg-[#14532D] text-white'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Radio className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Rádio &amp; Banner</span>
               </button>
             )}
 
@@ -1209,6 +1341,8 @@ export function AdminDashboard({
               ['pickups', 'Coletas'],
               ['products', 'Produtos'],
               ['assisted', 'Assistidas'],
+              ['notifications', 'Alertas PWA'],
+              ['radio', 'Rádio 96,3'],
               ['reports', 'Relatórios PDF'],
               ['editais', 'Editais TJAC'],
               ['users', 'Usuários & RBAC'],
@@ -1314,7 +1448,52 @@ export function AdminDashboard({
 
           {/* TAB 1: OVERVIEW */}
           {safeActiveTab === 'overview' && (
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <div className="space-y-6">
+              {criticalStockProducts.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-[#9A3412]/30 bg-[#FFF7ED] px-5 py-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#9A3412]" aria-hidden="true" />
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[#9A3412]">
+                        Monitor de Estoque · {criticalStockProducts.length} item(ns) abaixo de{' '}
+                        {pwaAlertSettings.criticalStockThresholdPct}% da meta
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-700">
+                        Itens críticos:{' '}
+                        <span className="font-medium text-slate-900">
+                          {criticalStockProducts
+                            .slice(0, 4)
+                            .map((c) => `${c.product.name} (${c.product.receivedQty}/${c.product.targetQty} ${c.product.unit})`)
+                            .join(' · ')}
+                        </span>
+                        {criticalStockProducts.length > 4
+                          ? ` e mais ${criticalStockProducts.length - 4}.`
+                          : '.'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openNotificationsTab('stock_emergency')}
+                      className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md bg-[#9A3412] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#7C2D12]"
+                    >
+                      <BellRing className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Alertar Voluntários (PWA)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openNotificationsTab('work_shift')}
+                      className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md border border-[#14532D] bg-white px-3.5 py-2 text-xs font-semibold text-[#14532D] hover:bg-[#F0FDF4]"
+                    >
+                      <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Nova Escala PWA</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
               <MonthlyDonationsChart
                 donations={donations}
                 accountingEntries={accountingEntries}
@@ -1458,6 +1637,7 @@ export function AdminDashboard({
                   </table>
                 </div>
               </div>
+            </div>
             </div>
           )}
 
@@ -2567,6 +2747,32 @@ export function AdminDashboard({
           {/* TAB 6: PRODUCT LIST MANAGEMENT */}
           {safeActiveTab === 'products' && (
             <div className="space-y-5">
+              {criticalStockProducts.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-[#9A3412]/30 bg-[#FFF7ED] px-5 py-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#9A3412]" aria-hidden="true" />
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[#9A3412]">
+                        Emergência de Estoque · {criticalStockProducts.length} item(ns) crítico(s)
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-700">
+                        Produtos ativos com recebimento ≤{' '}
+                        {pwaAlertSettings.criticalStockThresholdPct}% da meta mensal. Emita um
+                        alerta nativo PWA para mobilizar voluntários e doadores.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openNotificationsTab('stock_emergency')}
+                    className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-md bg-[#9A3412] px-4 py-2 text-xs font-semibold text-white hover:bg-[#7C2D12]"
+                  >
+                    <BellRing className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Emitir Alerta PWA de Estoque</span>
+                  </button>
+                </div>
+              )}
+
               <form
                 onSubmit={handleAddProduct}
                 className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-5 sm:grid-cols-12 sm:items-end"
@@ -2955,6 +3161,23 @@ export function AdminDashboard({
             </div>
           )}
 
+          {/* TAB 6C: NOTIFICAÇÕES NATIVAS PWA AOS VOLUNTÁRIOS */}
+          {safeActiveTab === 'notifications' && (
+            <PwaNotificationsPanel
+              products={products}
+              volunteerApplications={volunteerApplications}
+              alerts={pwaAlerts}
+              settings={pwaAlertSettings}
+              adminDisplayName={adminUser?.nome || adminUser?.displayName || 'Diretoria'}
+              initialMode={notificationInitialMode}
+              onDispatchAlert={dispatchPwaAlert}
+              onResendAlert={resendPwaAlert}
+              onRemoveAlert={removePwaAlert}
+              onClearAlerts={clearPwaAlerts}
+              onUpdateSettings={updatePwaAlertSettings}
+            />
+          )}
+
           {/* TAB 6C: RELATÓRIOS PDF DO DASHBOARD POR CATEGORIA */}
           {safeActiveTab === 'reports' && (
             <div className="space-y-6">
@@ -3182,9 +3405,19 @@ export function AdminDashboard({
               {/* Quick table of registered volunteers inside Reports view */}
               {volunteerApplications.length > 0 && (
                 <div className="rounded-lg border border-slate-200 bg-white p-5">
-                  <h3 className="font-serif text-base font-semibold text-slate-900">
-                    Voluntários Inscritos via Portal ({volunteerApplications.length})
-                  </h3>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="font-serif text-base font-semibold text-slate-900">
+                      Voluntários Inscritos via Portal ({volunteerApplications.length})
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => openNotificationsTab('work_shift')}
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-[#14532D] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0F3F22]"
+                    >
+                      <BellRing className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Notificar Nova Escala (PWA)</span>
+                    </button>
+                  </div>
                   <div className="mt-3 overflow-x-auto">
                     <table className="w-full border-collapse text-left text-xs">
                       <thead>
@@ -3265,6 +3498,9 @@ export function AdminDashboard({
               </div>
             </div>
           )}
+
+          {/* TAB 6C: RÁDIO BOAS NOVAS FM 96,3 (BANNER & LINK) */}
+          {safeActiveTab === 'radio' && <AdminRadioBannerPanel />}
 
           {/* TAB 7: COLETA DE EDITAIS (CNAE & TJAC) */}
           {safeActiveTab === 'editais' && <EditaisCollectorPanel variant="admin" />}

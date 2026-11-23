@@ -1,6 +1,7 @@
 import { ArrowUpRight, Calendar, FileText, Landmark, Lock, MapPin, Phone } from 'lucide-react';
 import { INSTITUTION_PROFILE, OFFICIAL_ASSETS } from '../data/institutionalData';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ChristmasFooterAccent } from './ChristmasThemeElements';
 
 interface FooterProps {
   onOpenEbook: () => void;
@@ -15,6 +16,7 @@ export function Footer({ onOpenEbook, onOpenAdmin }: FooterProps) {
 
   return (
     <footer className="border-t border-[#E2DDD3] bg-[#F4F0E8] text-[#1C1917]">
+      <ChristmasFooterAccent />
       <div className="mx-auto max-w-[1200px] px-6 py-12">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-12">
           <div className="flex items-start gap-4 md:col-span-5">
@@ -91,6 +93,14 @@ export function Footer({ onOpenEbook, onOpenAdmin }: FooterProps) {
               {t.footer.navHeader}
             </p>
             <ul className="space-y-1.5 text-[#44403C]">
+              <li>
+                <a
+                  href="#radio-boas-novas"
+                  className="hover:text-[#1C1917] hover:underline underline-offset-4"
+                >
+                  Rádio Boas Novas FM 96,3
+                </a>
+              </li>
               <li>
                 <a href="#vagas" className="hover:text-[#1C1917] hover:underline underline-offset-4">
                   {t.footer.linkVolunteer}

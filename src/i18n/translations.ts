@@ -69,6 +69,8 @@ export interface SiteTranslations {
       breakdownHours: string;
       ctaMeals: string;
       ctaHours: string;
+      volunteersLabel: string;
+      volunteersUnit: string;
     };
   };
   volunteer: {
@@ -108,6 +110,10 @@ export interface SiteTranslations {
     removeApplication: string;
     myApplicationsTitle: string;
     close: string;
+    pwaAlertsEnable: string;
+    pwaAlertsActive: string;
+    pwaAlertsFeedTitle: string;
+    pwaAlertsMarkRead: string;
   };
   donations: {
     kicker: string;
@@ -298,6 +304,17 @@ export interface SiteTranslations {
     viewAccount: string;
     closeNotice: string;
   };
+  search: {
+    ariaLabel: string;
+    placeholder: string;
+    clearBtn: string;
+    keywordsTitle: string;
+    quickTagsLabel: string;
+    eventsGroup: string;
+    postsGroup: string;
+    noResults: string;
+    tryKeywords: string;
+  };
 }
 
 export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
@@ -336,7 +353,7 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
         'Conheçam o casal missionário Teodoro e Antônia Lúcia, fundadores desse trabalho tão especial que leva acolhimento, dignidade e segurança alimentar às famílias.',
       leadershipKicker: 'Presidência em Atividade · Cozinha Comunitária',
       leadershipCaption1:
-        'Em plena atividade, a presidenta da instituição, Antônia Missionária, e o vice-presidente, José Benedito, reafirmam diariamente o compromisso com o bem-estar social. Cada alimento preparado representa não apenas sustento, mas sobretudo um gesto concreto de acolhimento, dignidade e esperança para as famílias atendidas pela nossa comunidade.',
+        'Em plena atividade, a presidenta da instituição, Antônia Missionária, e o vice-presidente, Missionário Teodoro, reafirmam diariamente o compromisso com o bem-estar social. Cada alimento preparado representa não apenas sustento, mas sobretudo um gesto concreto de acolhimento, dignidade e esperança para as famílias atendidas pela nossa comunidade.',
       leadershipCaption2: 'Seguimos firmes na missão de servir com amor, união e solidariedade.',
       descriptionStart:
         'Organização da Sociedade Civil fundada em 26 de fevereiro de 2019 e reconhecida como Entidade de Utilidade Pública Estadual pela',
@@ -374,6 +391,8 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
         breakdownHours: 'Turnos presenciais da equipe e novas inscrições voluntárias no mês',
         ctaMeals: 'Ajudar a servir mais refeições',
         ctaHours: 'Somar horas como voluntário',
+        volunteersLabel: 'Voluntários Ativos',
+        volunteersUnit: 'voluntários',
       },
     },
     volunteer: {
@@ -416,6 +435,10 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       removeApplication: 'Cancelar inscrição',
       myApplicationsTitle: 'Minhas inscrições voluntárias',
       close: 'Fechar',
+      pwaAlertsEnable: 'Ativar Alertas PWA (Escalas e Estoque)',
+      pwaAlertsActive: 'Alertas PWA Ativos',
+      pwaAlertsFeedTitle: 'Avisos e Alertas PWA da Coordenação',
+      pwaAlertsMarkRead: 'Marcar como lidos',
     },
     donations: {
       kicker: 'Apoio Financeiro, Doadores Mensais & Coletas',
@@ -622,6 +645,17 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       viewAccount: 'Ver Minha Conta',
       closeNotice: 'Fechar aviso',
     },
+    search: {
+      ariaLabel: 'Pesquisar eventos históricos e postagens de atividades do Projeto Sopão',
+      placeholder: 'Buscar eventos históricos, leis, pães, sacolões, Ramal da Cajazeira...',
+      clearBtn: 'Limpar pesquisa',
+      keywordsTitle: 'Termos-chave locais para busca rápida',
+      quickTagsLabel: 'Tópicos rápidos',
+      eventsGroup: 'Eventos Históricos e Capítulos',
+      postsGroup: 'Postagens e Registros de Atividades',
+      noResults: 'Nenhum evento ou postagem encontrado para',
+      tryKeywords: 'Experimente selecionar um dos termos-chave abaixo:',
+    },
   },
   en: {
     languageName: 'English',
@@ -658,7 +692,7 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
         'Meet the missionary couple Teodoro and Antônia Lúcia, founders of this special work that brings welcome, dignity, and food security to families.',
       leadershipKicker: 'Leadership in Action · Community Kitchen',
       leadershipCaption1:
-        'In full daily activity, the institution’s president, Antônia Missionária, and vice president, José Benedito, reaffirm their commitment to social well-being. Every meal prepared represents not only nourishment, but above all a concrete gesture of welcome, dignity, and hope for the families served in our community.',
+        'In full daily activity, the institution’s president, Antônia Missionária, and vice president, Missionário Teodoro, reaffirm their commitment to social well-being. Every meal prepared represents not only nourishment, but above all a concrete gesture of welcome, dignity, and hope for the families served in our community.',
       leadershipCaption2:
         'We remain steadfast in our mission to serve with love, unity, and solidarity.',
       descriptionStart:
@@ -697,6 +731,8 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
         breakdownHours: 'On-site volunteer shifts and active portal sign-ups this month',
         ctaMeals: 'Help fund more meals',
         ctaHours: 'Contribute volunteer hours',
+        volunteersLabel: 'Active Volunteers',
+        volunteersUnit: 'volunteers',
       },
     },
     volunteer: {
@@ -739,6 +775,10 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       removeApplication: 'Cancel application',
       myApplicationsTitle: 'My volunteer applications',
       close: 'Close',
+      pwaAlertsEnable: 'Enable PWA Alerts (Shifts & Stock)',
+      pwaAlertsActive: 'PWA Alerts Active',
+      pwaAlertsFeedTitle: 'Coordination PWA Notices & Alerts',
+      pwaAlertsMarkRead: 'Mark as read',
     },
     donations: {
       kicker: 'Financial Support, Monthly Donors & Food Pickups',
@@ -945,6 +985,17 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       viewAccount: 'View My Account',
       closeNotice: 'Dismiss notice',
     },
+    search: {
+      ariaLabel: 'Search historical events and Projeto Sopão activity posts',
+      placeholder: 'Search historical milestones, laws, bread, food baskets, events...',
+      clearBtn: 'Clear search',
+      keywordsTitle: 'Local keywords for quick discovery',
+      quickTagsLabel: 'Quick topics',
+      eventsGroup: 'Historical Milestones & Chapters',
+      postsGroup: 'Activity Posts & Field Records',
+      noResults: 'No historical events or posts matched',
+      tryKeywords: 'Try one of the curated local keywords below:',
+    },
   },
   es: {
     languageName: 'Español',
@@ -981,7 +1032,7 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
         'Conozcan al matrimonio misionero Teodoro y Antônia Lúcia, fundadores de esta labor tan especial que lleva acogida, dignidad y seguridad alimentaria a las familias.',
       leadershipKicker: 'Directiva en Actividad · Cocina Comunitaria',
       leadershipCaption1:
-        'En plena actividad, la presidenta de la institución, Antônia Missionária, y el vicepresidente, José Benedito, reafirman diariamente su compromiso con el bienestar social. Cada alimento preparado representa no solo sustento, sino sobre todo un gesto concreto de acogida, dignidad y esperanza para las familias atendidas por nuestra comunidad.',
+        'En plena actividad, la presidenta de la institución, Antônia Missionária, y el vicepresidente, Missionário Teodoro, reafirman diariamente su compromiso con el bienestar social. Cada alimento preparado representa no solo sustento, sino sobre todo un gesto concreto de acogida, dignidad y esperanza para las familias atendidas por nuestra comunidad.',
       leadershipCaption2: 'Seguimos firmes en la misión de servir con amor, unión y solidaridad.',
       descriptionStart:
         'Organización de la Sociedad Civil fundada el 26 de febrero de 2019 y declarada Entidad de Utilidad Pública Estatal por la',
@@ -1019,6 +1070,8 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
         breakdownHours: 'Turnos presenciales del equipo y nuevas inscripciones este mes',
         ctaMeals: 'Ayudar a servir más comidas',
         ctaHours: 'Sumar horas como voluntario',
+        volunteersLabel: 'Voluntarios Activos',
+        volunteersUnit: 'voluntarios',
       },
     },
     volunteer: {
@@ -1061,6 +1114,10 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
       removeApplication: 'Cancelar inscripción',
       myApplicationsTitle: 'Mis postulaciones voluntarias',
       close: 'Cerrar',
+      pwaAlertsEnable: 'Activar Alertas PWA (Turnos y Stock)',
+      pwaAlertsActive: 'Alertas PWA Activas',
+      pwaAlertsFeedTitle: 'Avisos y Alertas PWA de Coordinación',
+      pwaAlertsMarkRead: 'Marcar como leídos',
     },
     donations: {
       kicker: 'Apoyo Financiero, Donantes Mensuales y Recolección',
@@ -1266,6 +1323,17 @@ export const TRANSLATIONS: Record<LanguageCode, SiteTranslations> = {
     portalAuth: {
       viewAccount: 'Ver Mi Cuenta',
       closeNotice: 'Cerrar aviso',
+    },
+    search: {
+      ariaLabel: 'Buscar eventos históricos y publicaciones de actividades del Projeto Sopão',
+      placeholder: 'Buscar hitos históricos, leyes, panes, canastas, actividades...',
+      clearBtn: 'Limpiar búsqueda',
+      keywordsTitle: 'Palabras clave locales para búsqueda rápida',
+      quickTagsLabel: 'Temas rápidos',
+      eventsGroup: 'Eventos Históricos y Capítulos',
+      postsGroup: 'Publicaciones y Registros de Actividades',
+      noResults: 'No se encontraron eventos ni publicaciones para',
+      tryKeywords: 'Pruebe una de las palabras clave locales a continuación:',
     },
   },
 };

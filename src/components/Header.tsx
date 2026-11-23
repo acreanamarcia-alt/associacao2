@@ -4,7 +4,12 @@ import { AdminUser, canEnterAdminPanel } from '../data/adminAuthClient';
 import { OFFICIAL_ASSETS } from '../data/institutionalData';
 import { useLanguage } from '../i18n/LanguageContext';
 import { LanguageCode } from '../i18n/translations';
+import {
+  ChristmasHeaderGarland,
+  ChristmasLogoCornerAccent,
+} from './ChristmasThemeElements';
 import { PWAInstallButton } from './PWAInstallButton';
+import { TopSiteSearchBar } from './TopSiteSearchBar';
 
 interface HeaderProps {
   authUser?: AdminUser | null;
@@ -38,14 +43,9 @@ export function Header({
     { href: '#historia', label: t.nav.history },
   ];
 
-  const isPrivileged = Boolean(authUser && canEnterAdminPanel(authUser.role));
   const isStandardUser = Boolean(authUser && !canEnterAdminPanel(authUser.role));
 
-  const accountActionLabel = isPrivileged
-    ? t.nav.panel
-    : isStandardUser
-      ? t.nav.account
-      : t.nav.signIn;
+  const accountActionLabel = isStandardUser ? t.nav.account : t.nav.panel;
 
   const handleAccountAction = () => {
     if (isStandardUser && onOpenAccount) {
@@ -59,12 +59,15 @@ export function Header({
     <header className="sticky top-0 z-40 border-b border-[#D6CEBE] bg-[#FBF9F5]/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-[1340px] items-center justify-between gap-4 px-5 py-3.5 sm:px-6">
         <a href="#inicio" className="flex min-w-0 items-center gap-3 group">
-          <img
-            src={OFFICIAL_ASSETS.logo}
-            alt="Logo oficial Projeto Sopão Acre"
-            referrerPolicy="no-referrer"
-            className="h-11 w-11 shrink-0 rounded-full border border-[#14532D]/30 bg-white object-cover shadow-xs sm:h-12 sm:w-12"
-          />
+          <div className="relative shrink-0">
+            <img
+              src={OFFICIAL_ASSETS.logo}
+              alt="Logo oficial Projeto Sopão Acre"
+              referrerPolicy="no-referrer"
+              className="h-11 w-11 rounded-full border border-[#14532D]/30 bg-white object-cover shadow-xs sm:h-12 sm:w-12"
+            />
+            <ChristmasLogoCornerAccent />
+          </div>
           <span className="font-serif text-base font-bold leading-tight tracking-tight text-[#14532D] transition-colors group-hover:text-[#0F3F22] sm:text-lg xl:whitespace-nowrap">
             Associação Recanto Social Bom Pastor
           </span>
@@ -166,11 +169,7 @@ export function Header({
               }}
               className="py-1.5 text-left text-sm font-medium text-[#1C1917]"
             >
-              {isPrivileged
-                ? t.nav.panel
-                : isStandardUser
-                  ? t.nav.account
-                  : t.nav.signInCreate}
+              {isStandardUser ? t.nav.account : t.nav.panel}
             </button>
 
             <div className="flex items-center justify-between border-t border-[#E2DDD3] pt-3">
@@ -214,6 +213,8 @@ export function Header({
           </nav>
         </div>
       )}
+      <TopSiteSearchBar />
+      <ChristmasHeaderGarland />
     </header>
   );
 }
